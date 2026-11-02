@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.SplitSmart" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#990000</item>
+        <item name="colorPrimaryVariant">#660000</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#FFC72C</item>
+        <item name="colorOnSecondary">#1D1D1D</item>
+    </style>
+    <dimen name="foundation_padding">24dp</dimen>
+</resources>

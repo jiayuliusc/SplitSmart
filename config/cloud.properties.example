@@ -1,0 +1,6 @@
+# Copy to ../cloud.properties (ignored). Values come from the owner's Firebase Android app.
+# This file is never needed by localDebug. Do not put service account credentials here.
+firebase.projectId=REPLACE_WITH_SHARED_PROJECT_ID
+firebase.applicationId=REPLACE_WITH_MOBILESDK_APP_ID
+firebase.apiKey=REPLACE_WITH_ANDROID_API_KEY
+firebase.functionsRegion=us-central1

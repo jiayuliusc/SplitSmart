@@ -1,0 +1,103 @@
+import groovy.json.JsonOutput
+
+plugins {
+    id 'com.android.application'
+}
+
+def cloudEnabled = providers.gradleProperty('enableCloud').orNull == 'true'
+def cloudProperties = new Properties()
+if (cloudEnabled) {
+    def configFile = rootProject.file('cloud.properties')
+    if (!configFile.exists()) {
+        throw new GradleException('Copy config/cloud.properties.example to cloud.properties and fill it in before enabling cloud builds.')
+    }
+    configFile.withInputStream { cloudProperties.load(it) }
+    ['firebase.projectId', 'firebase.applicationId', 'firebase.apiKey', 'firebase.functionsRegion'].each { key ->
+        if (!cloudProperties.getProperty(key)?.trim() || cloudProperties.getProperty(key).contains('REPLACE')) {
+            throw new GradleException("Missing cloud configuration: ${key}")
+        }
+    }
+    if (cloudProperties.getProperty('firebase.projectId').startsWith('demo-')) {
+        throw new GradleException('Cloud builds require a real Firebase project ID; use localDebug for demo projects.')
+    }
+}
+
+android {
+    namespace 'edu.usc.splitsmart'
+    compileSdk 35
+    buildToolsVersion '35.0.0'
+
+    defaultConfig {
+        applicationId 'edu.usc.splitsmart'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    flavorDimensions += 'environment'
+    productFlavors {
+        local {
+            dimension 'environment'
+            applicationIdSuffix '.local'
+            versionNameSuffix '-local'
+            buildConfigField 'boolean', 'USE_FIREBASE_EMULATORS', 'true'
+            buildConfigField 'String', 'FIREBASE_PROJECT_ID', '"demo-splitsmart"'
+            buildConfigField 'String', 'FIREBASE_APPLICATION_ID', '"1:1234567890:android:0000000000000000000000"'
+            buildConfigField 'String', 'FIREBASE_API_KEY', '"AIzaSyDemoSplitSmartEmulatorOnly000000000"'
+            buildConfigField 'String', 'FUNCTIONS_REGION', '"us-central1"'
+        }
+        cloud {
+            dimension 'environment'
+            buildConfigField 'boolean', 'USE_FIREBASE_EMULATORS', 'false'
+            buildConfigField 'String', 'FIREBASE_PROJECT_ID', JsonOutput.toJson(cloudProperties.getProperty('firebase.projectId', ''))
+            buildConfigField 'String', 'FIREBASE_APPLICATION_ID', JsonOutput.toJson(cloudProperties.getProperty('firebase.applicationId', ''))
+            buildConfigField 'String', 'FIREBASE_API_KEY', JsonOutput.toJson(cloudProperties.getProperty('firebase.apiKey', ''))
+            buildConfigField 'String', 'FUNCTIONS_REGION', JsonOutput.toJson(cloudProperties.getProperty('firebase.functionsRegion', 'us-central1'))
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+        viewBinding true
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint {
+        abortOnError true
+        warningsAsErrors true
+        // Dependency updates are coordinated separately, not implicit build failures.
+        disable 'GradleDependency', 'NewerVersionAvailable'
+    }
+}
+
+androidComponents {
+    beforeVariants(selector().all()) { variant ->
+        def environment = variant.productFlavors.find { it.first == 'environment' }?.second
+        if ((environment == 'cloud' && !cloudEnabled) ||
+                (environment == 'local' && variant.buildType == 'release')) {
+            variant.enable = false
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.activity:activity:1.10.1'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-livedata:2.8.7'
+
+    implementation platform('com.google.firebase:firebase-bom:34.4.0')
+    implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-firestore'
+    implementation 'com.google.firebase:firebase-functions'
+
+    // Available for teammates' future plain Java service/calculator tests.
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+}

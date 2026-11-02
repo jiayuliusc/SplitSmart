@@ -1,0 +1,50 @@
+# Android / Gradle / IDE machine state
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+.externalNativeBuild/
+.cxx/
+captures/
+*.apk
+*.aab
+*.hprof
+
+# Local cloud configuration and secrets
+cloud.properties
+google-services.json
+**/google-services.json
+**/*service-account*.json
+**/*serviceAccount*.json
+**/*service_account*.json
+**/*firebase-adminsdk*.json
+**/credentials*.json
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+keystore.properties
+.env
+.env.*
+!.env.example
+.secrets*
+.config/
+
+# Node, Firebase and local-only emulator data
+node_modules/
+functions/lib/
+.firebase/
+.firebase-cache/
+.emulator-data/
+firebase-export-*/
+*-debug.log
+*-debug.*.log
+*.log
+coverage/
+tmp/
+
+# The wrapper JAR is required and must be committed.
+!gradle/wrapper/gradle-wrapper.jar

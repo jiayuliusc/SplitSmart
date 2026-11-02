@@ -1,0 +1,19 @@
+{
+  "name": "splitsmart-foundation",
+  "version": "0.1.0",
+  "private": true,
+  "engines": { "node": "22.x" },
+  "packageManager": "npm@10.9.0",
+  "workspaces": ["functions"],
+  "scripts": {
+    "functions:build": "npm run build --workspace functions",
+    "emulators": "npm run functions:build && firebase emulators:start --config firebase.local.json --project demo-splitsmart --only auth,firestore,functions",
+    "diagnostics:seed": "node scripts/seed-diagnostic.mjs",
+    "diagnostics:verify": "node scripts/verify-diagnostic.mjs",
+    "check:emulators": "npm run functions:build && firebase emulators:exec --config firebase.local.json --project demo-splitsmart --only auth,firestore,functions \"npm run diagnostics:seed && npm run diagnostics:verify\"",
+    "check:android": "npm run functions:build && firebase emulators:exec --config firebase.local.json --project demo-splitsmart --only auth,firestore,functions \"npm run diagnostics:seed && npm run diagnostics:verify && node scripts/android-diagnostic.mjs\""
+  },
+  "devDependencies": {
+    "firebase-tools": "14.22.0"
+  }
+}
