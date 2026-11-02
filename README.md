@@ -3,7 +3,8 @@
 Native Android infrastructure for Team 9 (Salmon Noodles). **No product features
 are implemented yet.** The app launches one placeholder screen. There are no
 registration, login, group, expense, split, balance, settlement, history, or summary
-implementations. The Functions workspace deliberately exports no handlers.
+implementations. Contract baseline v1 supplies shared values, interfaces and callable
+payload definitions. The Functions entry point deliberately exports no handlers.
 
 Local development uses Firebase emulators under **`demo-splitsmart`**. It needs
 neither a Firebase account nor cloud credentials, `google-services.json`, billing,
@@ -40,7 +41,7 @@ JDK 21 runs both Gradle and the emulator suite; Java source stays at 17.
 1. Clone the owner's private repository and enter its root:
 
    ```bash
-   git clone <OWNER_PROVIDED_GITHUB_URL> SplitSmart
+   git clone git@github.com:jiayuliusc/SplitSmart.git SplitSmart
    cd SplitSmart
    ```
 
@@ -258,29 +259,18 @@ verified by the local smoke test. No deployment commands are run by CI.
 
 ## Team work and one-time owner setup
 
-The local repository is on `main`. No GitHub remote was inferred: this folder was
-empty, no destination was supplied, and GitHub CLI access was unavailable. The
-owner can publish the reviewed foundation using GitHub CLI:
+The shared repository is [jiayuliusc/SplitSmart](https://github.com/jiayuliusc/SplitSmart),
+with remote `git@github.com:jiayuliusc/SplitSmart.git`. The local `main` branch already
+tracks `origin/main`; do not create a replacement repository or add another origin.
+The contract baseline is prepared on `feature/shared-contract-baseline-v1` for PR
+review, not automatic merge. Use the exact baseline commit from its handoff/PR
+when branching before that PR merges; see CONTRIBUTING.md.
 
-```bash
-gh auth login
-# Replace YOUR_OWNER with the agreed personal account or organization:
-gh repo create YOUR_OWNER/SplitSmart --private --source=. --remote=origin --push
-```
+The owner should confirm team access and branch protection requiring PR review,
+`Android build and lint`, and `Firebase emulators`. CI needs no cloud secrets.
+Jiayu Li (`jiayuliusc`) coordinates changes to the v1 shared contracts.
 
-If the private repository already exists, use instead:
-
-```bash
-git remote add origin git@github.com:YOUR_OWNER/SplitSmart.git
-git push -u origin main
-```
-
-Do not create a second repository if Team 9 already has one. Confirm the remote
-visibility is private, invite the five teammates, enable Actions, and protect
-`main` with PR review and the `Android build and lint` and `Firebase emulators`
-checks. No GitHub secret is required by these workflows.
-
-Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the coordination proposals:
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the finalized v1 coordination contracts:
 
 | Workstream | Start in presentation package | Planned scope |
 | --- | --- | --- |
@@ -291,12 +281,23 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the coordination proposals:
 | E | `history` | F17–F21: history and monthly summaries |
 
 All packages are under `app/src/main/java/edu/usc/splitsmart/`.
-See [architecture](docs/ARCHITECTURE.md), [draft schema](docs/SCHEMA.md),
-[draft contracts](docs/CONTRACTS.md), [source decisions](docs/DESIGN_DECISIONS.md),
-and [verification results](docs/VERIFICATION.md). Package documentation supplies
-locations without generating speculative model/service classes. Coordinate shared
-contracts before persistence work; feature authors should not need to change
-Gradle or Firebase initialization for ordinary implementation.
+See [architecture](docs/ARCHITECTURE.md), [v1 schema](docs/SCHEMA.md),
+[v1 contracts](docs/CONTRACTS.md), [source decisions](docs/DESIGN_DECISIONS.md),
+and [verification results](docs/VERIFICATION.md). The domain records, callback/error/read types, repository and service interfaces,
+Java wire records and matching TypeScript types now compile. No serializers,
+repository/service implementations or product handlers are supplied. Ordinary
+feature work should not require Gradle or Firebase initialization changes.
+
+Check shared JSON compatibility in both languages:
+
+```bash
+./gradlew :app:testLocalDebugUnitTest
+npm run check:contracts
+```
+
+The common corpus is `contracts/v1/fixtures.json`. Financial expectations are
+recorded separately in `contracts/v1/financial-expectations.json`; they are not
+implemented calculator tests. CI runs the Java and TypeScript compatibility checks.
 
 ## Troubleshooting
 

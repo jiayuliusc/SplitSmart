@@ -1,0 +1,1527 @@
+{
+  "schemaVersion": 1,
+  "constants": {
+    "maxAbsoluteCents": "9007199254740991",
+    "maxRevision": "9007199254740991",
+    "totalBasisPoints": 10000,
+    "currency": "USD"
+  },
+  "enums": {
+    "Category": [
+      "FOOD",
+      "HOUSING",
+      "TRANSPORTATION",
+      "ENTERTAINMENT",
+      "OTHER"
+    ],
+    "SplitMethod": [
+      "EQUAL",
+      "EXACT",
+      "PERCENTAGE"
+    ],
+    "TransactionType": [
+      "EXPENSE",
+      "SETTLEMENT"
+    ],
+    "GroupStatus": [
+      "ACTIVE",
+      "DELETING"
+    ],
+    "HistorySort": [
+      "NEWEST_FIRST",
+      "OLDEST_FIRST"
+    ],
+    "ErrorCode": [
+      "VALIDATION",
+      "UNAUTHENTICATED",
+      "PERMISSION_DENIED",
+      "NOT_FOUND",
+      "CACHE_MISS",
+      "ALREADY_EXISTS",
+      "CONFLICT",
+      "IDEMPOTENCY_MISMATCH",
+      "GROUP_DELETING",
+      "OUT_OF_RANGE",
+      "RESOURCE_EXHAUSTED",
+      "UNAVAILABLE",
+      "DEADLINE_EXCEEDED",
+      "INTERNAL"
+    ]
+  },
+  "owners": {
+    "completeProfile": "A",
+    "updateProfileName": "A",
+    "createGroup": "A",
+    "addGroupMember": "A",
+    "updateGroup": "A",
+    "deleteGroup": "A",
+    "getGroupMemberProfiles": "A",
+    "getGroupLedger": "C",
+    "createExpense": "B",
+    "updateExpense": "B",
+    "deleteExpense": "B",
+    "createSettlement": "D",
+    "updateSettlement": "D",
+    "deleteSettlement": "D"
+  },
+  "cases": [
+    {
+      "id": "User",
+      "type": "User",
+      "value": {
+        "uid": "A",
+        "name": "Member A",
+        "email": "a@usc.edu",
+        "uscId": "0012345678",
+        "createdAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "updatedAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        }
+      }
+    },
+    {
+      "id": "MemberProfile",
+      "type": "MemberProfile",
+      "value": {
+        "uid": "A",
+        "name": "Member A",
+        "email": "a@usc.edu"
+      }
+    },
+    {
+      "id": "Group",
+      "type": "Group",
+      "value": {
+        "groupId": "group-1",
+        "name": "Roommates",
+        "ownerId": "A",
+        "memberIds": [
+          "A",
+          "B",
+          "C"
+        ],
+        "revision": "2",
+        "status": "ACTIVE",
+        "createdAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "updatedAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        }
+      }
+    },
+    {
+      "id": "ExpenseShare",
+      "type": "ExpenseShare",
+      "value": {
+        "participantId": "A",
+        "amountCents": "1000"
+      }
+    },
+    {
+      "id": "SplitInput",
+      "type": "SplitInput",
+      "value": {
+        "participantId": "A",
+        "basisPoints": 3334
+      }
+    },
+    {
+      "id": "ExpenseDraft",
+      "type": "ExpenseDraft",
+      "value": {
+        "title": "Lunch",
+        "amountCents": "3000",
+        "payerId": "A",
+        "participantIds": [
+          "A",
+          "B",
+          "C"
+        ],
+        "splitMethod": "EQUAL",
+        "category": "FOOD",
+        "splitInputs": []
+      }
+    },
+    {
+      "id": "Expense",
+      "type": "Expense",
+      "value": {
+        "expenseId": "expense-1",
+        "groupId": "group-1",
+        "title": "Lunch",
+        "amountCents": "3000",
+        "payerId": "A",
+        "participantIds": [
+          "A",
+          "B",
+          "C"
+        ],
+        "splitMethod": "EQUAL",
+        "category": "FOOD",
+        "currency": "USD",
+        "creatorId": "B",
+        "localDate": "2026-11-02",
+        "createdAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "updatedAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "shares": [
+          {
+            "participantId": "A",
+            "amountCents": "1000"
+          },
+          {
+            "participantId": "B",
+            "amountCents": "1000"
+          },
+          {
+            "participantId": "C",
+            "amountCents": "1000"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SettlementDraft",
+      "type": "SettlementDraft",
+      "value": {
+        "payeeId": "A",
+        "amountCents": "400"
+      }
+    },
+    {
+      "id": "Settlement",
+      "type": "Settlement",
+      "value": {
+        "settlementId": "settlement-1",
+        "groupId": "group-1",
+        "creatorId": "B",
+        "payerId": "B",
+        "payeeId": "A",
+        "amountCents": "400",
+        "currency": "USD",
+        "localDate": "2026-11-02",
+        "createdAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "updatedAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        }
+      }
+    },
+    {
+      "id": "LedgerSnapshot",
+      "type": "LedgerSnapshot",
+      "value": {
+        "groupId": "group-1",
+        "revision": "2",
+        "expenses": [
+          {
+            "expenseId": "expense-1",
+            "groupId": "group-1",
+            "title": "Lunch",
+            "amountCents": "3000",
+            "payerId": "A",
+            "participantIds": [
+              "A",
+              "B",
+              "C"
+            ],
+            "splitMethod": "EQUAL",
+            "category": "FOOD",
+            "currency": "USD",
+            "creatorId": "B",
+            "localDate": "2026-11-02",
+            "createdAt": {
+              "seconds": 1793664000,
+              "nanoseconds": 123456000
+            },
+            "updatedAt": {
+              "seconds": 1793664000,
+              "nanoseconds": 123456000
+            },
+            "shares": [
+              {
+                "participantId": "A",
+                "amountCents": "1000"
+              },
+              {
+                "participantId": "B",
+                "amountCents": "1000"
+              },
+              {
+                "participantId": "C",
+                "amountCents": "1000"
+              }
+            ]
+          }
+        ],
+        "settlements": [
+          {
+            "settlementId": "settlement-1",
+            "groupId": "group-1",
+            "creatorId": "B",
+            "payerId": "B",
+            "payeeId": "A",
+            "amountCents": "400",
+            "currency": "USD",
+            "localDate": "2026-11-02",
+            "createdAt": {
+              "seconds": 1793664000,
+              "nanoseconds": 123456000
+            },
+            "updatedAt": {
+              "seconds": 1793664000,
+              "nanoseconds": 123456000
+            }
+          }
+        ],
+        "memberIds": [
+          "A",
+          "B",
+          "C"
+        ]
+      }
+    },
+    {
+      "id": "ProfileDraft",
+      "type": "ProfileDraft",
+      "value": {
+        "name": "Member A",
+        "uscId": "0012345678"
+      }
+    },
+    {
+      "id": "GroupDraft",
+      "type": "GroupDraft",
+      "value": {
+        "name": "Roommates"
+      }
+    },
+    {
+      "id": "DeletedRecord",
+      "type": "DeletedRecord",
+      "value": {
+        "recordId": "expense-1"
+      }
+    },
+    {
+      "id": "GroupDeletion",
+      "type": "GroupDeletion",
+      "value": {
+        "groupId": "group-1",
+        "status": "DELETING"
+      }
+    },
+    {
+      "id": "Timestamp",
+      "type": "Timestamp",
+      "value": {
+        "seconds": 1793664000,
+        "nanoseconds": 123456000
+      }
+    },
+    {
+      "id": "MembersResponse",
+      "type": "MembersResponse",
+      "value": {
+        "schemaVersion": 1,
+        "members": [
+          {
+            "uid": "A",
+            "name": "Member A",
+            "email": "a@usc.edu"
+          }
+        ]
+      }
+    },
+    {
+      "id": "LedgerResponse",
+      "type": "LedgerResponse",
+      "value": {
+        "schemaVersion": 1,
+        "ledger": {
+          "groupId": "group-1",
+          "revision": "2",
+          "expenses": [
+            {
+              "expenseId": "expense-1",
+              "groupId": "group-1",
+              "title": "Lunch",
+              "amountCents": "3000",
+              "payerId": "A",
+              "participantIds": [
+                "A",
+                "B",
+                "C"
+              ],
+              "splitMethod": "EQUAL",
+              "category": "FOOD",
+              "currency": "USD",
+              "creatorId": "B",
+              "localDate": "2026-11-02",
+              "createdAt": {
+                "seconds": 1793664000,
+                "nanoseconds": 123456000
+              },
+              "updatedAt": {
+                "seconds": 1793664000,
+                "nanoseconds": 123456000
+              },
+              "shares": [
+                {
+                  "participantId": "A",
+                  "amountCents": "1000"
+                },
+                {
+                  "participantId": "B",
+                  "amountCents": "1000"
+                },
+                {
+                  "participantId": "C",
+                  "amountCents": "1000"
+                }
+              ]
+            }
+          ],
+          "settlements": [
+            {
+              "settlementId": "settlement-1",
+              "groupId": "group-1",
+              "creatorId": "B",
+              "payerId": "B",
+              "payeeId": "A",
+              "amountCents": "400",
+              "currency": "USD",
+              "localDate": "2026-11-02",
+              "createdAt": {
+                "seconds": 1793664000,
+                "nanoseconds": 123456000
+              },
+              "updatedAt": {
+                "seconds": 1793664000,
+                "nanoseconds": 123456000
+              }
+            }
+          ],
+          "memberIds": [
+            "A",
+            "B",
+            "C"
+          ]
+        }
+      }
+    },
+    {
+      "id": "ErrorDetails",
+      "type": "ErrorDetails",
+      "value": {
+        "schemaVersion": 1,
+        "code": "CONFLICT",
+        "field": "expectedRevision",
+        "retryable": false
+      }
+    },
+    {
+      "id": "completeProfile request",
+      "type": "completeProfile.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "profile": {
+          "name": "Member A",
+          "uscId": "0012345678"
+        }
+      }
+    },
+    {
+      "id": "completeProfile response",
+      "type": "completeProfile.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "value": {
+          "uid": "A",
+          "name": "Member A",
+          "email": "a@usc.edu",
+          "uscId": "0012345678",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          }
+        }
+      }
+    },
+    {
+      "id": "updateProfileName request",
+      "type": "updateProfileName.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000002",
+        "name": "Member A"
+      }
+    },
+    {
+      "id": "updateProfileName response",
+      "type": "updateProfileName.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000002",
+        "value": {
+          "uid": "A",
+          "name": "Member A",
+          "email": "a@usc.edu",
+          "uscId": "0012345678",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          }
+        }
+      }
+    },
+    {
+      "id": "createGroup request",
+      "type": "createGroup.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000003",
+        "draft": {
+          "name": "Roommates"
+        }
+      }
+    },
+    {
+      "id": "createGroup response",
+      "type": "createGroup.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000003",
+        "value": {
+          "groupId": "group-1",
+          "name": "Roommates",
+          "ownerId": "A",
+          "memberIds": [
+            "A",
+            "B",
+            "C"
+          ],
+          "revision": "1",
+          "status": "ACTIVE",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          }
+        },
+        "groupRevision": "1"
+      }
+    },
+    {
+      "id": "addGroupMember request",
+      "type": "addGroupMember.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000004",
+        "groupId": "group-1",
+        "expectedRevision": "1",
+        "email": "c@usc.edu"
+      }
+    },
+    {
+      "id": "addGroupMember response",
+      "type": "addGroupMember.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000004",
+        "value": {
+          "groupId": "group-1",
+          "name": "Roommates",
+          "ownerId": "A",
+          "memberIds": [
+            "A",
+            "B",
+            "C"
+          ],
+          "revision": "2",
+          "status": "ACTIVE",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          }
+        },
+        "groupRevision": "2"
+      }
+    },
+    {
+      "id": "updateGroup request",
+      "type": "updateGroup.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000005",
+        "groupId": "group-1",
+        "expectedRevision": "1",
+        "draft": {
+          "name": "Roommates"
+        }
+      }
+    },
+    {
+      "id": "updateGroup response",
+      "type": "updateGroup.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000005",
+        "value": {
+          "groupId": "group-1",
+          "name": "Roommates",
+          "ownerId": "A",
+          "memberIds": [
+            "A",
+            "B",
+            "C"
+          ],
+          "revision": "2",
+          "status": "ACTIVE",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          }
+        },
+        "groupRevision": "2"
+      }
+    },
+    {
+      "id": "deleteGroup request",
+      "type": "deleteGroup.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000006",
+        "groupId": "group-1",
+        "expectedRevision": "1"
+      }
+    },
+    {
+      "id": "deleteGroup response",
+      "type": "deleteGroup.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000006",
+        "value": {
+          "groupId": "group-1",
+          "status": "DELETING"
+        },
+        "groupRevision": "2"
+      }
+    },
+    {
+      "id": "getGroupMemberProfiles request",
+      "type": "getGroupMemberProfiles.request",
+      "value": {
+        "schemaVersion": 1,
+        "groupId": "group-1"
+      }
+    },
+    {
+      "id": "getGroupMemberProfiles response",
+      "type": "getGroupMemberProfiles.response",
+      "value": {
+        "schemaVersion": 1,
+        "members": [
+          {
+            "uid": "A",
+            "name": "Member A",
+            "email": "a@usc.edu"
+          }
+        ]
+      }
+    },
+    {
+      "id": "getGroupLedger request",
+      "type": "getGroupLedger.request",
+      "value": {
+        "schemaVersion": 1,
+        "groupId": "group-1"
+      }
+    },
+    {
+      "id": "getGroupLedger response",
+      "type": "getGroupLedger.response",
+      "value": {
+        "schemaVersion": 1,
+        "ledger": {
+          "groupId": "group-1",
+          "revision": "2",
+          "expenses": [
+            {
+              "expenseId": "expense-1",
+              "groupId": "group-1",
+              "title": "Lunch",
+              "amountCents": "3000",
+              "payerId": "A",
+              "participantIds": [
+                "A",
+                "B",
+                "C"
+              ],
+              "splitMethod": "EQUAL",
+              "category": "FOOD",
+              "currency": "USD",
+              "creatorId": "B",
+              "localDate": "2026-11-02",
+              "createdAt": {
+                "seconds": 1793664000,
+                "nanoseconds": 123456000
+              },
+              "updatedAt": {
+                "seconds": 1793664000,
+                "nanoseconds": 123456000
+              },
+              "shares": [
+                {
+                  "participantId": "A",
+                  "amountCents": "1000"
+                },
+                {
+                  "participantId": "B",
+                  "amountCents": "1000"
+                },
+                {
+                  "participantId": "C",
+                  "amountCents": "1000"
+                }
+              ]
+            }
+          ],
+          "settlements": [
+            {
+              "settlementId": "settlement-1",
+              "groupId": "group-1",
+              "creatorId": "B",
+              "payerId": "B",
+              "payeeId": "A",
+              "amountCents": "400",
+              "currency": "USD",
+              "localDate": "2026-11-02",
+              "createdAt": {
+                "seconds": 1793664000,
+                "nanoseconds": 123456000
+              },
+              "updatedAt": {
+                "seconds": 1793664000,
+                "nanoseconds": 123456000
+              }
+            }
+          ],
+          "memberIds": [
+            "A",
+            "B",
+            "C"
+          ]
+        }
+      }
+    },
+    {
+      "id": "createExpense request",
+      "type": "createExpense.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000009",
+        "groupId": "group-1",
+        "expectedRevision": "1",
+        "localDate": "2026-11-02",
+        "draft": {
+          "title": "Lunch",
+          "amountCents": "3000",
+          "payerId": "A",
+          "participantIds": [
+            "A",
+            "B",
+            "C"
+          ],
+          "splitMethod": "EQUAL",
+          "category": "FOOD",
+          "splitInputs": []
+        }
+      }
+    },
+    {
+      "id": "createExpense response",
+      "type": "createExpense.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000009",
+        "value": {
+          "expenseId": "expense-1",
+          "groupId": "group-1",
+          "title": "Lunch",
+          "amountCents": "3000",
+          "payerId": "A",
+          "participantIds": [
+            "A",
+            "B",
+            "C"
+          ],
+          "splitMethod": "EQUAL",
+          "category": "FOOD",
+          "currency": "USD",
+          "creatorId": "B",
+          "localDate": "2026-11-02",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "shares": [
+            {
+              "participantId": "A",
+              "amountCents": "1000"
+            },
+            {
+              "participantId": "B",
+              "amountCents": "1000"
+            },
+            {
+              "participantId": "C",
+              "amountCents": "1000"
+            }
+          ]
+        },
+        "groupRevision": "2"
+      }
+    },
+    {
+      "id": "updateExpense request",
+      "type": "updateExpense.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000010",
+        "groupId": "group-1",
+        "expectedRevision": "1",
+        "expenseId": "expense-1",
+        "draft": {
+          "title": "Lunch",
+          "amountCents": "3000",
+          "payerId": "A",
+          "participantIds": [
+            "A",
+            "B",
+            "C"
+          ],
+          "splitMethod": "EQUAL",
+          "category": "FOOD",
+          "splitInputs": []
+        }
+      }
+    },
+    {
+      "id": "updateExpense response",
+      "type": "updateExpense.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000010",
+        "value": {
+          "expenseId": "expense-1",
+          "groupId": "group-1",
+          "title": "Lunch",
+          "amountCents": "3000",
+          "payerId": "A",
+          "participantIds": [
+            "A",
+            "B",
+            "C"
+          ],
+          "splitMethod": "EQUAL",
+          "category": "FOOD",
+          "currency": "USD",
+          "creatorId": "B",
+          "localDate": "2026-11-02",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "shares": [
+            {
+              "participantId": "A",
+              "amountCents": "1000"
+            },
+            {
+              "participantId": "B",
+              "amountCents": "1000"
+            },
+            {
+              "participantId": "C",
+              "amountCents": "1000"
+            }
+          ]
+        },
+        "groupRevision": "2"
+      }
+    },
+    {
+      "id": "deleteExpense request",
+      "type": "deleteExpense.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000011",
+        "groupId": "group-1",
+        "expectedRevision": "1",
+        "expenseId": "expense-1"
+      }
+    },
+    {
+      "id": "deleteExpense response",
+      "type": "deleteExpense.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000011",
+        "value": {
+          "recordId": "expense-1"
+        },
+        "groupRevision": "2"
+      }
+    },
+    {
+      "id": "createSettlement request",
+      "type": "createSettlement.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000012",
+        "groupId": "group-1",
+        "expectedRevision": "1",
+        "localDate": "2026-11-02",
+        "draft": {
+          "payeeId": "A",
+          "amountCents": "400"
+        }
+      }
+    },
+    {
+      "id": "createSettlement response",
+      "type": "createSettlement.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000012",
+        "value": {
+          "settlementId": "settlement-1",
+          "groupId": "group-1",
+          "creatorId": "B",
+          "payerId": "B",
+          "payeeId": "A",
+          "amountCents": "400",
+          "currency": "USD",
+          "localDate": "2026-11-02",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          }
+        },
+        "groupRevision": "2"
+      }
+    },
+    {
+      "id": "updateSettlement request",
+      "type": "updateSettlement.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000013",
+        "groupId": "group-1",
+        "expectedRevision": "1",
+        "settlementId": "settlement-1",
+        "draft": {
+          "payeeId": "A",
+          "amountCents": "400"
+        }
+      }
+    },
+    {
+      "id": "updateSettlement response",
+      "type": "updateSettlement.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000013",
+        "value": {
+          "settlementId": "settlement-1",
+          "groupId": "group-1",
+          "creatorId": "B",
+          "payerId": "B",
+          "payeeId": "A",
+          "amountCents": "400",
+          "currency": "USD",
+          "localDate": "2026-11-02",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          }
+        },
+        "groupRevision": "2"
+      }
+    },
+    {
+      "id": "deleteSettlement request",
+      "type": "deleteSettlement.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000014",
+        "groupId": "group-1",
+        "expectedRevision": "1",
+        "settlementId": "settlement-1"
+      }
+    },
+    {
+      "id": "deleteSettlement response",
+      "type": "deleteSettlement.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000014",
+        "value": {
+          "recordId": "settlement-1"
+        },
+        "groupRevision": "2"
+      }
+    },
+    {
+      "id": "exact split input",
+      "type": "SplitInput",
+      "value": {
+        "participantId": "A",
+        "amountCents": "9007199254740991"
+      }
+    },
+    {
+      "id": "percentage share",
+      "type": "ExpenseShare",
+      "value": {
+        "participantId": "A",
+        "amountCents": "334",
+        "basisPoints": 3334
+      }
+    },
+    {
+      "id": "note present",
+      "type": "SettlementDraft",
+      "value": {
+        "payeeId": "A",
+        "amountCents": "400",
+        "note": ""
+      }
+    },
+    {
+      "id": "description present",
+      "type": "GroupDraft",
+      "value": {
+        "name": "Roommates",
+        "description": "Shared household"
+      }
+    },
+    {
+      "id": "maximum seconds",
+      "type": "Timestamp",
+      "value": {
+        "seconds": 253402300799,
+        "nanoseconds": 999999000
+      }
+    },
+    {
+      "id": "minimum seconds",
+      "type": "Timestamp",
+      "value": {
+        "seconds": -62135596800,
+        "nanoseconds": 0
+      }
+    },
+    {
+      "id": "unavailable error",
+      "type": "ErrorDetails",
+      "value": {
+        "schemaVersion": 1,
+        "code": "UNAVAILABLE",
+        "retryable": true
+      }
+    },
+    {
+      "id": "profile response without group revision",
+      "type": "ProfileMutationResponse",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "value": {
+          "uid": "A",
+          "name": "Member A",
+          "email": "a@usc.edu",
+          "uscId": "0012345678",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          }
+        }
+      }
+    }
+  ],
+  "invalidCases": [
+    {
+      "id": "money number",
+      "type": "SettlementDraft",
+      "value": {
+        "payeeId": "A",
+        "amountCents": 400
+      },
+      "typeError": true
+    },
+    {
+      "id": "money overflow",
+      "type": "SettlementDraft",
+      "value": {
+        "payeeId": "A",
+        "amountCents": "9007199254740992"
+      },
+      "typeError": false
+    },
+    {
+      "id": "money leading zero",
+      "type": "SettlementDraft",
+      "value": {
+        "payeeId": "A",
+        "amountCents": "0400"
+      },
+      "typeError": false
+    },
+    {
+      "id": "money decimal",
+      "type": "SettlementDraft",
+      "value": {
+        "payeeId": "A",
+        "amountCents": "4.00"
+      },
+      "typeError": true
+    },
+    {
+      "id": "money negative",
+      "type": "SettlementDraft",
+      "value": {
+        "payeeId": "A",
+        "amountCents": "-1"
+      },
+      "typeError": false
+    },
+    {
+      "id": "null note",
+      "type": "SettlementDraft",
+      "value": {
+        "payeeId": "A",
+        "amountCents": "400",
+        "note": null
+      },
+      "typeError": true
+    },
+    {
+      "id": "unknown actor",
+      "type": "createExpense.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000009",
+        "groupId": "group-1",
+        "expectedRevision": "1",
+        "localDate": "2026-11-02",
+        "draft": {
+          "title": "Lunch",
+          "amountCents": "3000",
+          "payerId": "A",
+          "participantIds": [
+            "A",
+            "B",
+            "C"
+          ],
+          "splitMethod": "EQUAL",
+          "category": "FOOD",
+          "splitInputs": []
+        },
+        "creatorId": "C"
+      },
+      "typeError": true
+    },
+    {
+      "id": "unknown enum",
+      "type": "Expense",
+      "value": {
+        "expenseId": "expense-1",
+        "groupId": "group-1",
+        "title": "Lunch",
+        "amountCents": "3000",
+        "payerId": "A",
+        "participantIds": [
+          "A",
+          "B",
+          "C"
+        ],
+        "splitMethod": "EQUAL",
+        "category": "food",
+        "currency": "USD",
+        "creatorId": "B",
+        "localDate": "2026-11-02",
+        "createdAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "updatedAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "shares": [
+          {
+            "participantId": "A",
+            "amountCents": "1000"
+          },
+          {
+            "participantId": "B",
+            "amountCents": "1000"
+          },
+          {
+            "participantId": "C",
+            "amountCents": "1000"
+          }
+        ]
+      },
+      "typeError": true
+    },
+    {
+      "id": "wrong currency",
+      "type": "Expense",
+      "value": {
+        "expenseId": "expense-1",
+        "groupId": "group-1",
+        "title": "Lunch",
+        "amountCents": "3000",
+        "payerId": "A",
+        "participantIds": [
+          "A",
+          "B",
+          "C"
+        ],
+        "splitMethod": "EQUAL",
+        "category": "FOOD",
+        "currency": "EUR",
+        "creatorId": "B",
+        "localDate": "2026-11-02",
+        "createdAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "updatedAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "shares": [
+          {
+            "participantId": "A",
+            "amountCents": "1000"
+          },
+          {
+            "participantId": "B",
+            "amountCents": "1000"
+          },
+          {
+            "participantId": "C",
+            "amountCents": "1000"
+          }
+        ]
+      },
+      "typeError": true
+    },
+    {
+      "id": "timestamp range",
+      "type": "Timestamp",
+      "value": {
+        "seconds": 1793664000,
+        "nanoseconds": 1000000000
+      },
+      "typeError": false
+    },
+    {
+      "id": "timestamp precision",
+      "type": "Timestamp",
+      "value": {
+        "seconds": 1793664000,
+        "nanoseconds": 123456789
+      },
+      "typeError": false
+    },
+    {
+      "id": "timestamp seconds overflow",
+      "type": "Timestamp",
+      "value": {
+        "seconds": 253402300800,
+        "nanoseconds": 123456000
+      },
+      "typeError": false
+    },
+    {
+      "id": "timestamp fractional seconds",
+      "type": "Timestamp",
+      "value": {
+        "seconds": 1.5,
+        "nanoseconds": 123456000
+      },
+      "typeError": false
+    },
+    {
+      "id": "unsupported version",
+      "type": "ErrorDetails",
+      "value": {
+        "schemaVersion": 2,
+        "code": "CONFLICT",
+        "field": "expectedRevision",
+        "retryable": false
+      },
+      "typeError": true
+    },
+    {
+      "id": "invalid date",
+      "type": "Expense",
+      "value": {
+        "expenseId": "expense-1",
+        "groupId": "group-1",
+        "title": "Lunch",
+        "amountCents": "3000",
+        "payerId": "A",
+        "participantIds": [
+          "A",
+          "B",
+          "C"
+        ],
+        "splitMethod": "EQUAL",
+        "category": "FOOD",
+        "currency": "USD",
+        "creatorId": "B",
+        "localDate": "2026-02-30",
+        "createdAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "updatedAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "shares": [
+          {
+            "participantId": "A",
+            "amountCents": "1000"
+          },
+          {
+            "participantId": "B",
+            "amountCents": "1000"
+          },
+          {
+            "participantId": "C",
+            "amountCents": "1000"
+          }
+        ]
+      },
+      "typeError": false
+    },
+    {
+      "id": "negative revision",
+      "type": "Group",
+      "value": {
+        "groupId": "group-1",
+        "name": "Roommates",
+        "ownerId": "A",
+        "memberIds": [
+          "A",
+          "B",
+          "C"
+        ],
+        "revision": "-1",
+        "status": "ACTIVE",
+        "createdAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        },
+        "updatedAt": {
+          "seconds": 1793664000,
+          "nanoseconds": 123456000
+        }
+      },
+      "typeError": false
+    },
+    {
+      "id": "fractional basis points",
+      "type": "ExpenseShare",
+      "value": {
+        "participantId": "A",
+        "amountCents": "1000",
+        "basisPoints": 33.33
+      },
+      "typeError": false
+    },
+    {
+      "id": "required field missing",
+      "type": "SettlementDraft",
+      "value": {
+        "amountCents": "400"
+      },
+      "typeError": true
+    },
+    {
+      "id": "group revision missing",
+      "type": "createExpense.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000009",
+        "value": {
+          "expenseId": "expense-1",
+          "groupId": "group-1",
+          "title": "Lunch",
+          "amountCents": "3000",
+          "payerId": "A",
+          "participantIds": [
+            "A",
+            "B",
+            "C"
+          ],
+          "splitMethod": "EQUAL",
+          "category": "FOOD",
+          "currency": "USD",
+          "creatorId": "B",
+          "localDate": "2026-11-02",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "shares": [
+            {
+              "participantId": "A",
+              "amountCents": "1000"
+            },
+            {
+              "participantId": "B",
+              "amountCents": "1000"
+            },
+            {
+              "participantId": "C",
+              "amountCents": "1000"
+            }
+          ]
+        }
+      },
+      "typeError": true
+    },
+    {
+      "id": "profile response cannot claim group revision",
+      "type": "completeProfile.response",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "value": {
+          "uid": "A",
+          "name": "Member A",
+          "email": "a@usc.edu",
+          "uscId": "0012345678",
+          "createdAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          },
+          "updatedAt": {
+            "seconds": 1793664000,
+            "nanoseconds": 123456000
+          }
+        },
+        "groupRevision": "1"
+      },
+      "typeError": true
+    },
+    {
+      "id": "date-year-zero",
+      "type": "createExpense.request",
+      "value": {
+        "schemaVersion": 1,
+        "requestId": "00000000-0000-4000-8000-000000000009",
+        "groupId": "group-1",
+        "expectedRevision": "1",
+        "localDate": "0000-01-01",
+        "draft": {
+          "title": "Lunch",
+          "amountCents": "3000",
+          "payerId": "A",
+          "participantIds": [
+            "A",
+            "B",
+            "C"
+          ],
+          "splitMethod": "EQUAL",
+          "category": "FOOD",
+          "splitInputs": []
+        }
+      },
+      "typeError": false
+    }
+  ],
+  "signedCentsExamples": [
+    "-9007199254740991",
+    "-600",
+    "0",
+    "9007199254740991"
+  ],
+  "invalidSignedCentsExamples": [
+    "-9007199254740992",
+    "-0",
+    "+1",
+    "01",
+    "1.0",
+    "1e3"
+  ]
+}

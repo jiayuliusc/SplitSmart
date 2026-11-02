@@ -1,4 +1,42 @@
-# Foundation verification record
+# Verification record
+
+## Contract baseline v1 — November 2, 2026
+
+Verified on macOS/Apple Silicon with the environment listed below. These checks
+exercise shared definitions and existing infrastructure, not product behavior.
+
+| Check | Result |
+| --- | --- |
+| Android app and diagnostic APK builds | PASS: `:app:assembleLocalDebug :app:assembleLocalDebugAndroidTest` |
+| Java compatibility | PASS: `:app:testLocalDebugUnitTest`, 5 tests, zero failures/errors/skips |
+| Android lint | PASS: `:app:lintLocalDebug`, no issues |
+| TypeScript build and compatibility | PASS: `npm run check:contracts`, build plus 3 checks |
+| Firebase host/rules diagnostic | PASS: `npm run check:emulators`, all three emulators, fresh fixture read, denied list/unrelated reads/client write |
+| Android SDK connectivity | PASS: `npm run check:android`, one API 35 instrumentation test, zero failures/errors/skips, signed-out server read |
+| Shared boundary review | No SDK types in domain/repository/service contracts; no product handlers, implementations or financial algorithms; product rules unchanged and denied |
+| Documentation and patch hygiene | Relative source links resolve; `git diff --check` passes |
+
+Both language checks consume `contracts/v1/fixtures.json`. Coverage includes every
+callable request/response, enum and ownership map; primitive string IDs; optional
+omission versus explicit null; exact bounded decimal cents/revisions; timestamp
+seconds/nanoseconds and microsecond precision; and incompatible/unknown fields.
+Java also checks defensive collection ownership. Test-only encoding assertions
+are not production serializers or validators.
+
+The five financial examples in `contracts/v1/financial-expectations.json` are
+acceptance expectations, **not passing financial algorithm tests**. The transaction
+design was checked against installed Admin/Firestore SDK declarations and official
+documentation linked in CONTRACTS.md. No financial contention, cleanup worker,
+500-transaction performance benchmark, cloud deployment or feature flow was run.
+The shared backend runner and runtime codecs remain feature implementation work.
+
+CI now runs both compatibility suites alongside the existing build/emulator jobs.
+Local results above do not establish the result of a GitHub Actions run; consult
+the baseline PR for remote checks. The dedicated baseline branch is submitted for
+review and must not be assumed merged. Teammates should branch from the exact
+commit recorded in its handoff/PR.
+
+## Original infrastructure verification — November 1, 2026
 
 Verified locally on **November 1, 2026 (America/Los_Angeles)**. This records
 infrastructure evidence only; no business requirement is marked implemented.
@@ -79,9 +117,9 @@ data does not satisfy it.
 - No real cloud project connection, cloud rules deployment, Functions deployment,
   billing, production signing or Firebase authentication workflow was tested.
   Cloud build success with synthetic values is not cloud connectivity evidence.
-- GitHub Actions has been authored but not run on GitHub. Its build and emulator
-  commands passed locally. The owner must publish to the agreed private remote,
-  invite teammates and enable branch protection/check requirements.
+- GitHub Actions commands passed locally; remote run status is available on the
+  repository/PR. The shared remote is now `git@github.com:jiayuliusc/SplitSmart.git`.
+  Team invitations and branch protection/check requirements remain owner-managed.
 - Native Windows instructions and the `.bat` wrapper are included; Windows and
   Linux execution were not tested on this macOS host. Run the README workflow on
   those platforms before claiming support has been exercised there.

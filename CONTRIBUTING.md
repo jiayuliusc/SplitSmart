@@ -1,12 +1,21 @@
 # Working on SplitSmart
 
-This foundation contains infrastructure only. Read `docs/DESIGN_DECISIONS.md`
+This foundation contains infrastructure and contract baseline v1 only. Read `docs/DESIGN_DECISIONS.md`
 before implementing a requirement; the supplied catalog's larger foundation
 backlog does not mean those product features exist.
 
 ## Branch and pull request workflow
 
-After the owner publishes the foundation and its smoke check passes:
+The v1 definitions are on `feature/shared-contract-baseline-v1`. Before its PR
+merges, branch from the **exact commit named in the handoff/PR**, not the older
+infrastructure-only main:
+
+```bash
+git fetch origin
+git switch -c feature/<workstream>-<short-description> <V1_BASELINE_COMMIT>
+```
+
+After the baseline PR merges, use:
 
 ```bash
 git switch main
@@ -23,8 +32,8 @@ a branch they also use. Never commit credentials, local SDK paths or emulator da
 
 ## Five workstreams
 
-These are suggested boundaries, not assignments of named teammates. Agree on who
-owns each stream. All paths below are relative to
+Workstream owners A–E are selected by the team. **Jiayu Li (`jiayuliusc`) is the
+single coordination maintainer** for changes crossing these boundaries. All paths below are relative to
 `app/src/main/java/edu/usc/splitsmart`.
 
 | Stream | Own feature code | Coordinate with |
@@ -51,8 +60,8 @@ types cannot import Android/Firebase. Refer to `docs/ARCHITECTURE.md`.
 Before changing a shared contract, propose the concrete signature/field/rule,
 rationale and affected workstreams in the PR or issue. Affected owners must agree
 before other branches rely on it. Update `docs/SCHEMA.md` and `docs/CONTRACTS.md`
-with code, migration implications and the validation plan. Draft prose is not
-permission to implement incompatible versions independently.
+with code, migration implications and the validation plan. The public source types and SCHEMA.md/CONTRACTS.md are baseline v1; do not create
+a competing proposal or change signatures privately.
 
 Shared files requiring coordination:
 
@@ -65,22 +74,44 @@ Shared files requiring coordination:
 
 Add dependencies only after explaining why existing tools are insufficient, pin
 the version centrally in the relevant build file, regenerate the npm lockfile if
-needed, and run build/lint. Avoid a navigation library until the team agrees on
-the common host and route arguments. Add navigation in a dedicated integration PR;
+needed, and run build/lint. Follow the existing explicit-Activity navigation approach and the frozen
+NavigationContract keys; a new navigation library is a separate coordinated change. Add navigation in a dedicated integration PR;
 feature screens can be built independently first. Never pass SDK snapshots or
 private USC IDs through screen arguments.
 
-B/C/D must agree on authoritative group revisions, idempotency, rounding fixtures,
-safe numeric bounds and settlement replacement semantics before implementing
-financial persistence. A must independently authorize all profile/group operations.
+The revision, idempotency, numeric, rounding and settlement replacement contracts
+are now fixed in CONTRACTS.md. Implement them rather than reopening separate
+alternatives on each branch. B/C/D must review changes to that protocol together.
+A must independently authorize all profile/group operations.
 Do not loosen rules broadly to unblock another branch.
+
+## Shared ownership
+
+| Shared area | Primary owner | Required coordination |
+| --- | --- | --- |
+| User, MemberProfile, Session, ProfileDraft, Group/GroupDraft and auth/group contracts | A | Maintainer; other consumers for field/signature changes |
+| Expense, ExpenseDraft, ExpenseShare, SplitInput, Category, SplitMethod | B | C/D/E plus maintainer |
+| PairBalance, BalanceSummary, LedgerSnapshot and LedgerRepository/getGroupLedger | C | B/D/E plus maintainer |
+| Settlement, SettlementDraft and settlement contracts | D | B/C/E plus maintainer |
+| HistoryItem, HistoryFilter, HistorySort, MonthlySummary, TransactionType | E | B/C/D plus maintainer |
+| Callback/error/read/mutation wrappers, wire maps, fixtures and versioning | Jiayu Li | All affected workstreams |
+| Future common backend transaction/receipt/cleanup infrastructure | Jiayu Li | A/B/C/D; implement once under functions/src/infrastructure before endpoints depend on it |
+| Composition root, FeatureServices, navigation keys/host and shared resources | Jiayu Li | Feature owners integrating routes |
+| Product security rules/indexes | A, coordinated by Jiayu Li | Every owner whose path/query changes; rules remain denied until reviewed implementation |
+
+B and D must use the future common backend transaction infrastructure instead of
+writing divergent financial runners. Until it exists, they can build their private
+UI/validation code against the frozen contracts without adding working callables.
+Feature-private helpers, ViewModel state, layouts and test fakes are owned by each
+stream. Production fakes or throwing service stubs must not be wired into navigation.
 
 ## Checks and merge expectations
 
 ```bash
 npm ci
 npm run functions:build
-./gradlew :app:assembleLocalDebug :app:lintLocalDebug
+./gradlew :app:assembleLocalDebug :app:testLocalDebugUnitTest :app:lintLocalDebug
+npm run check:contracts
 npm run check:emulators
 ```
 
