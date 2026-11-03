@@ -16,8 +16,9 @@ X06 email verification and all other catalog features are excluded.
 ## Necessary shared changes identified before implementation
 
 - Add `AsyncOperation sendPasswordResetEmail(String email, Callback<Void> callback)`
-  to AuthRepository and AuthService. Its queued null success acknowledges Firebase
-  accepting the email request, not receipt of mail or existence of an account.
+  to AuthRepository and AuthService. Its queued null success acknowledges processing
+  the request, not receipt of mail or existence of an account. Unknown-user responses
+  share the same neutral confirmation as accepted requests.
 - Add `IdentityGroupServices` containing auth()/groups(); FeatureServices extends
   it. AppContainer implements only the available subset. No unavailable stubs.
 - Stored schema, existing callable names/payloads and financial interfaces stay v1.

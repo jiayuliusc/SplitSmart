@@ -16,6 +16,11 @@ public abstract class FeatureViewModel extends ViewModel {
     protected void start() { busy.setValue(true); message.setValue(""); error.setValue(null); }
     public boolean isBusy() { return Boolean.TRUE.equals(busy.getValue()); }
     public boolean pending() { return saved.contains("mutationId"); }
+    public String draft(String field, String fallback) {
+        String value = saved.get("draft:" + field); return value == null ? fallback : value;
+    }
+    public void editDraft(String field, String value) { saved.set("draft:" + field, value); }
+    protected void clearDraft(String... fields) { for (String field : fields) saved.remove("draft:" + field); }
     protected String intent(String operation, String... values) {
         if (pending()) return saved.get("mutationId");
         String key = UUID.randomUUID().toString(); saved.set("mutationId", key);
@@ -33,7 +38,10 @@ public abstract class FeatureViewModel extends ViewModel {
     protected void done(String text) { resolved(); message.setValue(text); busy.setValue(false); }
     public void bindUser(String uid) {
         String prior = saved.get("scopeUid");
-        if (prior != null && !prior.equals(uid)) { resolved(); cancelOperations(); }
+        if (prior != null && !prior.equals(uid)) {
+            for (String key : new HashSet<>(saved.keys())) if (key.startsWith("draft:")) saved.remove(key);
+            resolved(); cancelOperations();
+        }
         saved.set("scopeUid", uid);
     }
     public void cancelOperations() { operations.forEach(AsyncOperation::cancel); operations.clear(); busy.setValue(false); }

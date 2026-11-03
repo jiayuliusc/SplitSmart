@@ -47,8 +47,12 @@ public final class GroupDetailViewModel extends FeatureViewModel {
                 @Override public void onError(AppError e) { failed(e); }
             })); return;
         }
+        boolean updating = "update".equals(operation());
         Callback<MutationResult<Group>> callback = new Callback<>() {
-            @Override public void onSuccess(MutationResult<Group> result) { group.setValue(result.value()); done("Group updated."); changed.setValue(result); refresh(); }
+            @Override public void onSuccess(MutationResult<Group> result) {
+                if (updating) clearDraft("groupName", "groupDescription");
+                group.setValue(result.value()); done("Group updated."); changed.setValue(result); refresh();
+            }
             @Override public void onError(AppError e) { failed(e); }
         };
         if ("add".equals(operation())) track(groups.addMember(groupId, revision, input.get(1), requestId(), callback));

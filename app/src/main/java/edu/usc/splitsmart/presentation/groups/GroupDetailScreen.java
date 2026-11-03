@@ -21,6 +21,8 @@ public final class GroupDetailScreen extends ProtectedScreen {
         model = new ViewModelProvider(this, new FeatureFactory(this, getIntent().getExtras(),
             saved -> new GroupDetailViewModel(saved, services().groups(), id))).get(GroupDetailViewModel.class);
         bind(model, R.id.groups_refresh, R.id.groups_save, R.id.groups_add, R.id.groups_delete);
+        bindDraft(model, R.id.groups_name, "groupName");
+        bindDraft(model, R.id.groups_description, "groupDescription");
         model.group.observe(this, group -> {
             if (group == null) {
                 show(R.id.groups_owner_controls, false);
@@ -32,8 +34,8 @@ public final class GroupDetailScreen extends ProtectedScreen {
             text(R.id.groups_description_view, group.description() == null ? "" : group.description());
             boolean owner = group.ownerId().equals(currentUid); show(R.id.groups_owner_controls, owner);
             text(R.id.groups_role, getString(owner ? R.string.groups_owner_label : R.string.groups_member_label));
-            if (!model.pending() && !findViewById(R.id.groups_name).hasFocus()) text(R.id.groups_name, group.name());
-            if (!model.pending() && !findViewById(R.id.groups_description).hasFocus()) text(R.id.groups_description, group.description() == null ? "" : group.description());
+            text(R.id.groups_name, model.draft("groupName", group.name()));
+            text(R.id.groups_description, model.draft("groupDescription", group.description() == null ? "" : group.description()));
         });
         model.members.observe(this, members -> {
             LinearLayout rows = findViewById(R.id.groups_members_rows); rows.removeAllViews();

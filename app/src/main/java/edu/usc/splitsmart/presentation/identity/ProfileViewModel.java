@@ -15,7 +15,7 @@ public final class ProfileViewModel extends FeatureViewModel {
         if (isBusy()) return;
         String key = intent("name", name); String retainedName = values().get(0); start();
         track(auth.updateName(retainedName, key, new Callback<>() {
-            @Override public void onSuccess(MutationResult<User> result) { user.setValue(result.value()); done("Name updated."); }
+            @Override public void onSuccess(MutationResult<User> result) { clearDraft("profileName"); user.setValue(result.value()); done("Name updated."); }
             @Override public void onError(AppError e) { failed(e); }
         }));
     }

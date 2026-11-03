@@ -33,8 +33,10 @@ Android main thread, **never inline**, even for a validation error or cache hit.
 Implementers inject an executor/dispatcher at the composition root so services
 stay plain Java. Exactly one terminal callback occurs unless cancelled. `Void`
 success is permitted only for signOut and sendPasswordResetEmail. Reset success
-means the Auth SDK accepted the request; it does not prove account existence or
-mail delivery. Its confirmation must not disclose whether an email is registered.
+acknowledges processing the reset request; it does not prove account existence or
+mail delivery. Normalize Auth's unknown-user response to the same neutral success
+used for an accepted request, while preserving provider/transport failures. The
+confirmation must not disclose whether an email is registered.
 
 `cancel()` is idempotent, may be called from any thread, detaches listeners, and
 suppresses callbacks that have not started when cancellation returns. A callback

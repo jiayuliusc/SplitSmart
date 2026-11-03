@@ -36,13 +36,19 @@ cover registration, profile/name changes, group creation/replay, member addition
 membership projection, stale revisions, reset requests, deletion and signed-out
 access. The XML screen test follows registration → groups → creation/details →
 profile → logout → reset → login, then recovers a second account after a duplicate
-USC ID rejected its profile. Test screenshots contain synthetic identities only.
+USC ID rejected its profile. The screen regression also rotates after editing both group fields and verifies
+the unsaved values survive a fresh server read. Registered and unknown USC emails
+produce the same reset confirmation through both the SDK and screen. Test
+screenshots contain synthetic identities only.
 
 Pre-PR verification fixed an emulator API-key format rejected by the Functions
 SDK, resource/lint issues, Auth lookup dependency during receipt replay, navigation
 that could discard pending mutation intent, and stale private screen text after
 access loss. A cross-thread parent/child cancellation regression was added during
-PR review, with child cancellation moved outside the parent lock. Codex PR review findings and remote CI results belong to the PR;
+PR review, with child cancellation moved outside the parent lock. Codex review identified two P2 findings: dirty group fields lost during lifecycle
+refresh and unknown-account reset responses revealing account existence. Saved
+form drafts and reset-specific normalization address these findings, with Android
+regression coverage. The final follow-up review and remote CI results belong to the PR;
 local results alone do not establish a GitHub check's status.
 
 ## Environment and reproduction

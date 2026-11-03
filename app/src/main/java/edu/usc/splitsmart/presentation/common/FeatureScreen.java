@@ -1,8 +1,12 @@
 package edu.usc.splitsmart.presentation.common;
 
 import android.content.Intent;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.*;
 import android.widget.*;
+import java.util.HashSet;
+import java.util.Set;
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
@@ -13,6 +17,7 @@ import edu.usc.splitsmart.config.*;
 import edu.usc.splitsmart.presentation.identity.LoginScreen;
 
 public abstract class FeatureScreen extends AppCompatActivity {
+    private final Set<Integer> rendering = new HashSet<>();
     protected IdentityGroupServices services() { return ((SplitSmartApplication) getApplication()).getContainer(); }
     protected void screen(int layout) {
         EdgeToEdge.enable(this); setContentView(layout);
@@ -25,7 +30,21 @@ public abstract class FeatureScreen extends AppCompatActivity {
         findViewById(R.id.feature_message).setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
     }
     protected String input(int id) { return ((EditText) findViewById(id)).getText().toString(); }
-    protected void text(int id, String text) { ((TextView) findViewById(id)).setText(text); }
+    protected void text(int id, String text) {
+        TextView view = findViewById(id);
+        if (view.getText().toString().equals(text)) return;
+        rendering.add(id);
+        try { view.setText(text); } finally { rendering.remove(id); }
+    }
+    protected void bindDraft(FeatureViewModel model, int id, String field) {
+        ((EditText) findViewById(id)).addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            @Override public void afterTextChanged(Editable value) {
+                if (!rendering.contains(id)) model.editDraft(field, value.toString());
+            }
+        });
+    }
     protected void show(int id, boolean visible) { findViewById(id).setVisibility(visible ? View.VISIBLE : View.GONE); }
     protected void bind(FeatureViewModel model, int... buttons) {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {

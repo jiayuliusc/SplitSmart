@@ -58,6 +58,7 @@ public final class IdentityGroupSdkTest {
             Result<MutationResult<Group>> stale = invoke(cb -> groups.updateGroup(groupId, 1, new GroupDraft("Stale", null), UUID.randomUUID().toString(), cb)); assertEquals(ErrorCode.CONFLICT, stale.error.code());
             ReadResult<List<Group>> list = ok(cb -> groups.getGroupsForCurrentUser(ReadPolicy.FRESH, cb)); assertEquals(1, list.value().size());
             this.<Void>ok(cb -> auth.sendPasswordResetEmail(email, cb));
+            this.<Void>ok(cb -> auth.sendPasswordResetEmail("unregistered-" + suffix + "@usc.edu", cb));
             MutationResult<GroupDeletion> deleted = ok(cb -> groups.deleteGroup(groupId, 2, UUID.randomUUID().toString(), cb)); assertEquals(GroupStatus.DELETING, deleted.value().status());
             ok(auth::signOut);
             Result<ReadResult<User>> signedOut = invoke(cb -> auth.getCurrentProfile(ReadPolicy.CACHE_ONLY, cb)); assertEquals(ErrorCode.UNAUTHENTICATED, signedOut.error.code());

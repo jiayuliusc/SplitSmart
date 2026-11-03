@@ -91,16 +91,33 @@ public final class IdentityScreensTest {
             capture("groups");
             instrumentation.runOnMainSync(() -> ((ViewGroup) activity.findViewById(R.id.groups_rows)).getChildAt(0).performClick());
             screen(GroupDetailScreen.class); capture("group-details");
-            input(R.id.groups_name, "Updated screen group"); click(R.id.groups_save);
+            input(R.id.groups_name, "Updated screen group"); input(R.id.groups_description, "Unsaved description");
+            Activity beforeRotation = activity;
+            instrumentation.runOnMainSync(() -> { activity.findViewById(R.id.groups_description).requestFocus(); activity.recreate(); });
+            await("new detail activity", () -> !ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED).contains(beforeRotation));
+            screen(GroupDetailScreen.class);
+            await("refreshed detail ready", () -> activity.findViewById(R.id.groups_save).isEnabled());
+            instrumentation.runOnMainSync(() -> {
+                assertEquals("Updated screen group", ((TextView) activity.findViewById(R.id.groups_name)).getText().toString());
+                assertEquals("Unsaved description", ((TextView) activity.findViewById(R.id.groups_description)).getText().toString());
+            });
+            click(R.id.groups_save);
             await("updated group title", () -> ((TextView) activity.findViewById(R.id.feature_title)).getText().toString().equals("Updated screen group")
                 && activity.findViewById(R.id.feature_progress).getVisibility() != View.VISIBLE);
             click(R.id.feature_back); screen(GroupListScreen.class);
             click(R.id.groups_profile); screen(ProfileScreen.class);
-            input(R.id.identity_name, "Updated screen owner"); click(R.id.identity_submit); message("Name updated.");
+            input(R.id.identity_name, "Updated screen owner");
+            Activity profileBeforeRotation = activity;
+            instrumentation.runOnMainSync(() -> { activity.findViewById(R.id.identity_name).clearFocus(); activity.recreate(); });
+            await("new profile activity", () -> !ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED).contains(profileBeforeRotation));
+            screen(ProfileScreen.class);
+            instrumentation.runOnMainSync(() -> assertEquals("Updated screen owner", ((TextView) activity.findViewById(R.id.identity_name)).getText().toString()));
+            click(R.id.identity_submit); message("Name updated.");
             click(R.id.identity_logout); screen(LoginScreen.class);
             click(R.id.identity_reset_link); screen(PasswordResetScreen.class);
             input(R.id.identity_email, "bad@sub.usc.edu"); click(R.id.identity_submit); message("usc.edu");
             input(R.id.identity_email, email); click(R.id.identity_submit); message("reset link has been requested"); capture("password-reset");
+            input(R.id.identity_email, "missing-" + suffix + "@usc.edu"); click(R.id.identity_submit); message("reset link has been requested");
             click(R.id.feature_back); screen(LoginScreen.class);
             input(R.id.identity_email, email); input(R.id.identity_password, "screen-password"); click(R.id.identity_submit); screen(GroupListScreen.class);
             click(R.id.identity_logout); screen(LoginScreen.class);

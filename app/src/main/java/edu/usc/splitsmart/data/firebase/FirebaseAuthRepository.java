@@ -3,6 +3,7 @@ package edu.usc.splitsmart.data.firebase;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseUser;
 import edu.usc.splitsmart.data.repository.AuthRepository;
 import edu.usc.splitsmart.domain.contract.*;
@@ -49,7 +50,14 @@ public final class FirebaseAuthRepository implements AuthRepository {
     @Override public AsyncOperation sendPasswordResetEmail(String email, Callback<Void> callback) {
         PendingOperation<Void> op = new PendingOperation<>(delivery, callback);
         auth.sendPasswordResetEmail(email).addOnCompleteListener(task -> {
-            if (task.isSuccessful()) op.onSuccess(null); else op.onError(FirebaseErrors.map(task.getException()));
+            // Match Firebase's enumeration-protected behavior in emulators and older projects too.
+            if (task.isSuccessful() || task.getException() instanceof FirebaseAuthException failure &&
+                "ERROR_USER_NOT_FOUND".equals(failure.getErrorCode())) op.onSuccess(null);
+            else {
+                AppError error = FirebaseErrors.map(task.getException());
+                op.onError(error.code() == ErrorCode.UNAUTHENTICATED ? new AppError(error.code(),
+                    "Could not request a password reset. Please try again later.", null, error.retryable()) : error);
+            }
         }); return op;
     }
 }
