@@ -1,8 +1,10 @@
 # Shared schema — contract baseline v1
 
 This is the canonical v1 coordination contract. The Java records and TypeScript
-shapes exist; persistence, validation, financial algorithms and product handlers
-do not. All product Firestore rules remain deny-by-default. Private implementation
+shapes exist. Identity/group services, persistence and callables are implemented;
+financial algorithms and handlers are not. Product writes remain denied. Only
+self-profile gets and active-member group reads are allowed; all other paths
+remain denied. Private implementation
 choices may not change the public representations below without a reviewed version
 change. See [CONTRACTS.md](CONTRACTS.md) for calls and the transaction protocol.
 
@@ -121,7 +123,7 @@ Optional stored fields are absent, never null.
 
 | Path | Stored fields in addition to schemaVersion | Access / lifecycle |
 | --- | --- | --- |
-| `users/{uid}` | `name`, normalized lowercase `email`, private 10-digit string `uscId`, `createdAt`, `updatedAt` | Future self-only read; backend writes. Leading zeros preserved. |
+| `users/{uid}` | `name`, normalized lowercase `email`, private 10-digit string `uscId`, `createdAt`, `updatedAt` | Self-only read; backend writes. Leading zeros preserved. |
 | `uscIdClaims/{uscId}` | `uid`, `createdAt` | Server-only unique reservation. Never expose IDs through client rules, URLs or logs. A simple private key avoids a second secret/hash scheme in v1. |
 | `groups/{groupId}` | `name`, optional `description`, `ownerId`, UID-sorted unique `memberIds`, `revision`, `status`, `createdAt`, `updatedAt` | ACTIVE member reads later; backend writes. Owner is initial member. DELETING blocks new operations and ordinary reads. |
 | `groups/{groupId}/expenses/{expenseId}` | `title`, `amountCents`, `currency`, `creatorId`, `payerId`, UID-sorted unique `participantIds`, `splitMethod`, `category`, optional `note`, `localDate`, timestamps, `shares` | Member reads later; only creator changes via backend. |

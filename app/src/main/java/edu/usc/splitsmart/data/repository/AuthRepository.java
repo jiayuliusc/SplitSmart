@@ -14,4 +14,7 @@ public interface AuthRepository {
     AsyncOperation signIn(String email, String password, Callback<Session> callback);
 
     AsyncOperation signOut(Callback<Void> callback);
+
+    /** X01: success acknowledges a reset request, not mailbox delivery or account existence. */
+    AsyncOperation sendPasswordResetEmail(String email, Callback<Void> callback);
 }

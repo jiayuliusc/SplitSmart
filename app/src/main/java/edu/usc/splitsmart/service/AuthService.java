@@ -15,6 +15,8 @@ public interface AuthService {
 
     AsyncOperation signOut(Callback<Void> callback);
 
+    AsyncOperation sendPasswordResetEmail(String email, Callback<Void> callback);
+
     AsyncOperation getCurrentProfile(ReadPolicy policy, Callback<ReadResult<User>> callback);
 
     AsyncOperation completeProfile(ProfileDraft profile, String requestId, Callback<MutationResult<User>> callback);

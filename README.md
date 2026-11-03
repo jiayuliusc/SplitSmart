@@ -1,10 +1,13 @@
-# SplitSmart — Team 9 development foundation
+# SplitSmart — Team 9
 
-Native Android infrastructure for Team 9 (Salmon Noodles). **No product features
-are implemented yet.** The app launches one placeholder screen. There are no
-registration, login, group, expense, split, balance, settlement, history, or summary
-implementations. Contract baseline v1 supplies shared values, interfaces and callable
-payload definitions. The Functions entry point deliberately exports no handlers.
+Native Android app for Team 9 (Salmon Noodles). User/group management and X01
+password reset are implemented on contract baseline v1. Register, complete a
+partially created profile, sign in/out, view/update your name, request a password
+reset, and create/manage multiple groups. Group owners edit details, add registered
+USC users, and delete groups through resumable backend cleanup.
+
+Expense, split, balance, settlement, history and summary features remain interfaces
+only. X06 email verification and all other optional features are outside this scope.
 
 Local development uses Firebase emulators under **`demo-splitsmart`**. It needs
 neither a Firebase account nor cloud credentials, `google-services.json`, billing,
@@ -38,7 +41,7 @@ JDK 21 runs both Gradle and the emulator suite; Java source stays at 17.
 
 ## Fresh clone on macOS or Linux
 
-1. Clone the owner's private repository and enter its root:
+1. Clone the shared repository and enter its root:
 
    ```bash
    git clone git@github.com:jiayuliusc/SplitSmart.git SplitSmart
@@ -127,8 +130,8 @@ The supplied workflow targets an Android Virtual Device, not a physical phone.
 The local flavor permits cleartext **only** to `10.0.2.2`; cloud forbids cleartext.
 All emulators bind to host loopback.
 
-There are no Functions endpoints yet. A message that no functions were discovered
-is expected; a Functions build/load error is not. No login is needed for this
+Seven identity/group callables and cleanupDeletedGroup should be discovered.
+A missing handler or Functions build/load error is a failure. No login is needed for this
 demo project. Ctrl+C stops the suite. Local data is intentionally ephemeral:
 restart and reseed to reset. No user data is imported or exported by default.
 
@@ -140,12 +143,12 @@ Create/start an API 35 device in Android Studio **Device Manager**, then:
 adb devices
 ./gradlew :app:assembleLocalDebug :app:lintLocalDebug
 ./gradlew :app:installLocalDebug
-adb shell am start -n edu.usc.splitsmart.local/edu.usc.splitsmart.presentation.foundation.FoundationScreen
+adb shell am start -n edu.usc.splitsmart.local/edu.usc.splitsmart.presentation.identity.LoginScreen
 ```
 
 Alternatively select the **app** run configuration and **localDebug**, choose the
-running device, and click Run. Expected screen: **SplitSmart / Team 9 development
-foundation**. Launching the placeholder does not itself read Firestore.
+running device, and click Run. Expected screen: **SplitSmart / Welcome back**, or your groups if a complete
+account is already signed in. Registration enters the app only after profile creation.
 
 With Firebase emulators running and the fixture seeded:
 
@@ -156,8 +159,9 @@ With Firebase emulators running and the fixture seeded:
 This installs a local-only instrumentation test APK. It performs an unauthenticated
 Android Firestore SDK `Source.SERVER` read of `_diagnostics/connectivity`, checks
 the expected message, project ID and schema version, and rejects a cached result.
-It uses the same Application and configured SDK instances as the placeholder app.
-The diagnostic source is in `app/src/androidTestLocal`; it is never packaged into
+It uses the same Application and configured SDK instances as the product app.
+The same suite also exercises the real Auth/group adapters and XML screen flows,
+including partial registration recovery and reset confirmation. Test sources are in `app/src/androidTestLocal`; it is never packaged into
 the application or cloud variant. It times out rather than reporting offline
 cache data as success. Test results are under
 `app/build/reports/androidTests/connected/debug/`.
@@ -170,7 +174,7 @@ Firebase suite to free its ports):
 npm run check:android
 ```
 
-For a host-only smoke test without an Android device:
+For host-only feature, authorization and diagnostic tests without an Android device:
 
 ```bash
 npm run check:emulators
@@ -204,7 +208,7 @@ In a second PowerShell window, use the same environment setup:
 npm.cmd run diagnostics:seed
 npm.cmd run diagnostics:verify
 .\gradlew.bat :app:assembleLocalDebug :app:lintLocalDebug :app:installLocalDebug
-adb shell am start -n edu.usc.splitsmart.local/edu.usc.splitsmart.presentation.foundation.FoundationScreen
+adb shell am start -n edu.usc.splitsmart.local/edu.usc.splitsmart.presentation.identity.LoginScreen
 .\gradlew.bat :app:connectedLocalDebugAndroidTest
 ```
 
@@ -245,11 +249,11 @@ Cloud builds fail early if the required properties are missing.
 
 Manual `FirebaseOptions` initialization is used in both environments; the Google
 Services Gradle plugin and a real `google-services.json` are not needed. Auth and
-Functions SDKs are configured but unused by this placeholder. Enabling the
-email/password Auth provider belongs to the owner's later identity setup.
+Functions SDKs power identity/group flows. Enable the email/password Auth provider
+in a real cloud project and configure its reset-email template before cloud use.
 
-`firebase.json` references **cloud deny-all rules**. `firebase.local.json` alone
-references the diagnostic exception. Never deploy the local configuration.
+`firebase.json` references the reviewed self-profile/member-group read rules; all
+client product writes remain denied. `firebase.local.json` alone adds the diagnostic exception. Never deploy the local configuration.
 Before a future deployment, review rules and callable authorization together and
 use the real project ID explicitly rather than changing the demo default alias.
 Functions deployment requires a suitable billing plan; that is a separate future
@@ -262,9 +266,8 @@ verified by the local smoke test. No deployment commands are run by CI.
 The shared repository is [jiayuliusc/SplitSmart](https://github.com/jiayuliusc/SplitSmart),
 with remote `git@github.com:jiayuliusc/SplitSmart.git`. The local `main` branch already
 tracks `origin/main`; do not create a replacement repository or add another origin.
-The contract baseline is prepared on `feature/shared-contract-baseline-v1` for PR
-review, not automatic merge. Use the exact baseline commit from its handoff/PR
-when branching before that PR merges; see CONTRIBUTING.md.
+The v1 contract baseline is merged. Update `main` and create a dedicated feature
+branch before starting work; see CONTRIBUTING.md.
 
 The owner should confirm team access and branch protection requiring PR review,
 `Android build and lint`, and `Firebase emulators`. CI needs no cloud secrets.
@@ -283,10 +286,9 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the finalized v1 coordination 
 All packages are under `app/src/main/java/edu/usc/splitsmart/`.
 See [architecture](docs/ARCHITECTURE.md), [v1 schema](docs/SCHEMA.md),
 [v1 contracts](docs/CONTRACTS.md), [source decisions](docs/DESIGN_DECISIONS.md),
-and [verification results](docs/VERIFICATION.md). The domain records, callback/error/read types, repository and service interfaces,
-Java wire records and matching TypeScript types now compile. No serializers,
-repository/service implementations or product handlers are supplied. Ordinary
-feature work should not require Gradle or Firebase initialization changes.
+and [verification results](docs/VERIFICATION.md). Identity/group implementations now use the shared domain types and callable
+payloads. Financial interfaces remain unimplemented. See
+[the feature map](docs/USER_GROUP_IMPLEMENTATION.md) for screens, layers and tests.
 
 Check shared JSON compatibility in both languages:
 
@@ -310,14 +312,14 @@ implemented calculator tests. CI runs the Java and TypeScript compatibility chec
 | npm engine/build errors | Select Node 22.12.0, then `npm ci` at the root; do not use the machine's unrelated global Node/Firebase CLI. |
 | Ports already in use | Stop the earlier Firebase suite. Check 4000, 4400, 4500, 5001, 8080, 9099, 9150 with `lsof -nP -iTCP -sTCP:LISTEN` or Windows `Get-NetTCPConnection -State Listen`. Do not kill unrelated processes. |
 | Project mismatch warning | Keep `.firebaserc`, npm scripts and local `BuildConfig` at `demo-splitsmart`; use `npm run emulators`, not a command pointing at a real project. |
-| Permission denied reading diagnostic | Ensure `firebase.local.json` is selected. Only the exact `_diagnostics/connectivity` get is permitted; all product paths and lists are deliberately denied. |
+| Permission denied reading diagnostic | Ensure `firebase.local.json` is selected. Only the exact `_diagnostics/connectivity` get is permitted; signed-out product reads, private collections and direct product writes are denied. |
 | Diagnostic missing | Rerun `npm run diagnostics:seed` after every emulator restart. |
 | Android connection timeout / cleartext error | Use `localDebug` on an Android Virtual Device on the same host. `localhost` inside Android is the device; the app must use `10.0.2.2`. Verify Firebase ports on the host and avoid WSL/native mixing. |
 | No connected devices | Start an AVD, wait for the home screen, and inspect `adb devices`. If several devices are attached, disconnect extras or set `ANDROID_SERIAL` to the intended AVD. |
-| Test fails because a user is signed in | The foundation should be signed out. After later feature work, clear only this local app's data with `adb shell pm clear edu.usc.splitsmart.local`, then rerun. |
+| Test fails because a user is signed in | The diagnostic expects a signed-out start. Sign out in the local app, or clear only this local app's data with `adb shell pm clear edu.usc.splitsmart.local`, then rerun. |
 | Cloud tasks unavailable | Intentional: configure `cloud.properties` and opt in with `-PenableCloud=true`; do not modify the local flavor. |
-| Missing business data or no function endpoints | Expected. Product features and their rules are future work; do not open the database to make placeholder features appear. |
+| Missing groups or identity endpoints | Start the emulators, finish profile registration, and verify seven identity/group callables are loaded. Financial endpoints remain unimplemented. |
 
-The diagnostic proves one fresh local database read, not the application's future
-durability, concurrency or performance requirements. See the verification record
-for checks actually run and remaining platform limitations.
+The diagnostic checks one fresh read. The feature suites additionally exercise
+authentication, privacy, contention, receipts and cleanup. See the verification
+record for exact coverage and remaining platform limitations.

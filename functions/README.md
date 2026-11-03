@@ -1,21 +1,27 @@
-# Future authoritative operations
+# Authoritative identity/group operations
 
-This is a compilable TypeScript Functions project with zero handlers. `npm ci` at
-the repository root installs both workspaces; `npm run functions:build` compiles it.
-`npm run emulators` starts the Functions emulator along with Auth and Firestore.
-An empty discovered function list is expected.
+`src/index.ts` exports completeProfile, updateProfileName, createGroup,
+addGroupMember, updateGroup, deleteGroup, getGroupMemberProfiles, and the
+retry-enabled cleanupDeletedGroup Firestore trigger. X01 uses Firebase Auth's
+reset-email API directly and has no callable. No financial handler is exported.
 
-Future modules belong in `src/identity`, `src/groups`, `src/expenses`, and
-`src/settlements`. Add a module only when implementing that workstream. `src/contracts/v1.ts` now
-fixes callable names, request/response fields and errors; `npm run check:contracts`
-at the root checks them against the shared JSON corpus. Do not export contract
-constants from `src/index.ts` (the Firebase entry point still exports nothing).
-Coordinate new exports and use the shared protocol, rather than inventing another
-payload or financial transaction runner.
-See [v1 contracts](../docs/CONTRACTS.md) and [v1 schema](../docs/SCHEMA.md).
+`src/infrastructure` owns strict input checks, error mapping, canonical receipts
+and shared record/authorization helpers. `src/identity/handlers.ts` owns the seven
+identity/group calls. `src/groups/cleanup.ts` performs resumable bounded deletion.
+Stored profiles, claims and receipts remain private; member responses contain only
+UID/name/email. No email-verification check or email-verification sender exists.
 
-Every future operation must authenticate and authorize independently, validate
-authoritative data, and handle retries. Admin SDK access bypasses Firestore rules;
-deny-by-default rules alone cannot secure a callable. No registration, group,
-expense, balance, or settlement behavior is implemented here. Do not deploy this
-foundation or enable billing as part of local setup.
+Run `npm ci` from the root, `npm run check:contracts`, and `npm run check:emulators`.
+The latter runs synthetic account/reset/group/rules/deletion tests on demo-splitsmart
+only. The Auth emulator exposes reset actions locally and does not send real email.
+Actual cloud email delivery, resources and deployments remain owner configuration.
+
+V1 payloads are in `src/contracts/v1.ts`; contract constants are not function exports.
+See [contracts](../docs/CONTRACTS.md), [schema](../docs/SCHEMA.md), and
+[implementation map](../docs/USER_GROUP_IMPLEMENTATION.md). Keep future financial
+writers on the documented group revision/receipt/ledger protocol. Do not introduce
+parallel payload definitions or bypass the deletion marker.
+
+Monitor retry failures in cloud deployments. Retained DELETING jobs can be resumed
+by invoking the cleanup implementation from trusted administration if the event
+retry window expires. Never expose the cleanup helper as an unauthenticated endpoint.

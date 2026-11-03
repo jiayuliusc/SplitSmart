@@ -1,128 +1,87 @@
 # Verification record
 
-## Contract baseline v1 — November 2, 2026
+## User/group management and X01 — November 2, 2026
 
-Verified on macOS/Apple Silicon with the environment listed below. These checks
-exercise shared definitions and existing infrastructure, not product behavior.
+Scope is catalog section 1 and password reset X01. X06 and all financial, history,
+summary and other optional features remain unimplemented. Started from merged
+`main` at `61ad650` on `feature/user-groups-password-reset`.
 
-| Check | Result |
+| Check | Local result |
 | --- | --- |
-| Android app and diagnostic APK builds | PASS: `:app:assembleLocalDebug :app:assembleLocalDebugAndroidTest` |
-| Java compatibility | PASS: `:app:testLocalDebugUnitTest`, 5 tests, zero failures/errors/skips |
-| Android lint | PASS: `:app:lintLocalDebug`, no issues |
-| TypeScript build and compatibility | PASS: `npm run check:contracts`, build plus 3 checks |
-| Firebase host/rules diagnostic | PASS: `npm run check:emulators`, all three emulators, fresh fixture read, denied list/unrelated reads/client write |
-| Android SDK connectivity | PASS: `npm run check:android`, one API 35 instrumentation test, zero failures/errors/skips, signed-out server read |
-| Shared boundary review | No SDK types in domain/repository/service contracts; no product handlers, implementations or financial algorithms; product rules unchanged and denied |
-| Documentation and patch hygiene | Relative source links resolve; `git diff --check` passes |
+| Android app + test APKs | PASS: `:app:assembleLocalDebug :app:assembleLocalDebugAndroidTest` |
+| Java unit/compatibility tests | PASS: `:app:testLocalDebugUnitTest`, 12 tests, no failures/errors/skips |
+| Strict Android lint | PASS: `:app:lintLocalDebug`, warnings treated as errors |
+| TypeScript contract build/checks | PASS: `npm run check:contracts`, 3 compatibility checks |
+| Firebase emulator feature tests | PASS: `npm run check:emulators`, host/rules diagnostic plus 11 tests including nested cases |
+| Android SDK and screen integration | PASS: `npm run check:android`, 3 API 35 instrumentation tests |
 
-Both language checks consume `contracts/v1/fixtures.json`. Coverage includes every
-callable request/response, enum and ownership map; primitive string IDs; optional
-omission versus explicit null; exact bounded decimal cents/revisions; timestamp
-seconds/nanoseconds and microsecond precision; and incompatible/unknown fields.
-Java also checks defensive collection ownership. Test-only encoding assertions
-are not production serializers or validators.
+The Java tests cover exact USC domain and ASCII ID validation, queued callbacks,
+Auth success/profile failure with profile-only retry, cancellation, session changes,
+login/logout, and reset-email confirmation/transport errors. Shared fixture tests
+still cover all v1 wire definitions and immutable collection ownership.
 
-The five financial examples in `contracts/v1/financial-expectations.json` are
-acceptance expectations, **not passing financial algorithm tests**. The transaction
-design was checked against installed Admin/Firestore SDK declarations and official
-documentation linked in CONTRACTS.md. No financial contention, cleanup worker,
-500-transaction performance benchmark, cloud deployment or feature flow was run.
-The shared backend runner and runtime codecs remain feature implementation work.
+The backend tests exercise real Auth/Firestore/Functions emulators: duplicate email,
+competing USC ID claims, partial registration, private fields and denied direct
+writes, multiple groups, owner/member/outsider permissions, registered email lookup,
+stale concurrent revisions, success/error receipt replay and payload mismatch,
+member receipt replay while Auth lookup is unavailable, DELETING exclusion, cleanup
+of 250 synthetic child documents across bounded batches, duplicate cleanup delivery,
+and Firebase reset action application followed by old/new password login checks.
+Synthetic expense/settlement fixtures verify deletion only; no financial algorithms
+or financial APIs are implemented.
 
-CI now runs both compatibility suites alongside the existing build/emulator jobs.
-Local results above do not establish the result of a GitHub Actions run; consult
-the baseline PR for remote checks. The dedicated baseline branch is submitted for
-review and must not be assumed merged. Teammates should branch from the exact
-commit recorded in its handoff/PR.
+The Android integration tests use the real composition root and SDK adapters. They
+cover registration, profile/name changes, group creation/replay, member addition,
+membership projection, stale revisions, reset requests, deletion and signed-out
+access. The XML screen test follows registration → groups → creation/details →
+profile → logout → reset → login, then recovers a second account after a duplicate
+USC ID rejected its profile. Test screenshots contain synthetic identities only.
 
-## Original infrastructure verification — November 1, 2026
+Pre-PR verification fixed an emulator API-key format rejected by the Functions
+SDK, resource/lint issues, Auth lookup dependency during receipt replay, navigation
+that could discard pending mutation intent, and stale private screen text after
+access loss. Codex PR review findings and remote CI results belong to the PR;
+local results alone do not establish a GitHub check's status.
 
-Verified locally on **November 1, 2026 (America/Los_Angeles)**. This records
-infrastructure evidence only; no business requirement is marked implemented.
+## Environment and reproduction
 
-## Environment
+- macOS Apple Silicon; JDK 21.0.8; Java source/target 17; Gradle 8.11.1; AGP 8.9.2.
+- Android SDK/build tools 35; API 35 Android 15 arm64 AVD.
+- Node 22.12.0, npm 10.9.0, Firebase CLI 14.22.0; demo project `demo-splitsmart`.
+- Auth, Firestore and Functions emulators use loopback; the AVD uses `10.0.2.2`.
 
-- macOS on Apple Silicon (arm64).
-- Oracle JDK 21.0.8, Java source/target 17; Gradle 8.11.1; AGP 8.9.2.
-- Android SDK Platform 35 and Build Tools 35.0.0.
-- API 35 / Android 15 `Medium_Phone_API_35` AVD, arm64 Google APIs Play Store image,
-  Android Emulator 37.1.11.0; launched read-only without saving snapshots.
-- Node 22.12.0, npm 10.9.0, Firebase CLI 14.22.0.
-- Auth, Firestore (emulator 1.19.8) and Functions on loopback,
-  project `demo-splitsmart`; no cloud credentials or Google Services JSON.
-
-## Results
-
-| Check | Result |
-| --- | --- |
-| Official Gradle wrapper JAR SHA-256 | PASS: `2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046` |
-| Gradle distribution checksum | PASS: wrapper downloaded and verified the pinned 8.11.1 distribution |
-| npm lockfile install | PASS: `npm ci --offline --cache /tmp/splitsmart-npm-cache --no-fund --no-audit` after initial download |
-| Functions TypeScript build | PASS: `npm run functions:build`; empty handler exports intentional |
-| Local APK and diagnostic APK | PASS: `:app:assembleLocalDebug :app:assembleLocalDebugAndroidTest` |
-| Local Android lint | PASS: `:app:lintLocalDebug`; report says `No issues found.` |
-| Emulator startup and host diagnostic | PASS: `npm run check:emulators`; Auth/Firestore/Functions registered, synthetic record seeded/read |
-| Emulator diagnostic rules | PASS: unauthenticated exact get succeeds; listing, unrelated diagnostic/product reads and client write return HTTP 403 |
-| Android SDK connectivity | PASS: `npm run check:android`; one instrumentation test, zero failures/errors/skips; signed-out `Source.SERVER` read checks fixture and rejects cache |
-| Cloud configuration/build/lint | PASS for compilation only: `-PenableCloud=true :app:assembleCloudDebug :app:lintCloudDebug`, using temporary synthetic properties, then deleting them |
-| Configuration exclusion | PASS: local properties, cloud properties, Google Services JSON, service-account files, generated code and emulator data are ignored |
-
-The Android test logs:
-
-```text
-PASS: Android read _diagnostics/connectivity from demo-splitsmart (server)
-```
-
-The final APK is also installed and launched on the reference AVD; the static
-screen identifies SplitSmart as the Team 9 development foundation. It contains
-no product workflow. The diagnostic runs in a separate local instrumentation APK.
-
-Generated, ignored reports:
-
-- `app/build/reports/lint-results-localDebug.html`
-- `app/build/reports/lint-results-cloudDebug.html`
-- `app/build/reports/androidTests/connected/debug/flavors/local/index.html`
-- JUnit XML and diagnostic logcat under
-  `app/build/outputs/androidTest-results/connected/debug/flavors/local/`
-
-Initial verification caught a Gradle variable/flavor name collision and missing
-Android 12 data-extraction rules; both were corrected before the passing build
-and lint run. npm/Firebase emit upstream deprecation and available-version notices,
-and the Android build reports an unstripped dependency native library. These did
-not fail the build, lint, emulator startup, or diagnostic; dependency upgrades
-remain coordinated changes, not automatic modifications.
-
-## Reproduce
-
-Follow the README prerequisite setup, use Node 22.12.0/JDK 21, start an API 35 AVD,
-and run from the repository root with no cloud configuration:
+Use the README prerequisites, start an API 35 AVD and stop other Firebase suites:
 
 ```bash
 npm ci
-./gradlew :app:assembleLocalDebug :app:assembleLocalDebugAndroidTest :app:lintLocalDebug
+./gradlew :app:assembleLocalDebug :app:assembleLocalDebugAndroidTest :app:testLocalDebugUnitTest :app:lintLocalDebug
+npm run check:contracts
+npm run check:emulators
 npm run check:android
-./gradlew :app:installLocalDebug
-adb shell am start -n edu.usc.splitsmart.local/edu.usc.splitsmart.presentation.foundation.FoundationScreen
 ```
 
-The combined check starts/stops its own Firebase suite; stop other suites first.
-For a continuously running suite, use the README's `npm run emulators`, seed,
-host verify and `connectedLocalDebugAndroidTest` commands in separate terminals.
-The test must fail if the server is unavailable or the fixture is absent; cached
-data does not satisfy it.
+The combined emulator checks start/stop their own suites. With a persistent suite
+instead, seed the diagnostic fixture and run `connectedLocalDebugAndroidTest`.
+Generated reports live under `app/build/reports`, JUnit XML under
+`app/build/test-results` and `app/build/outputs/androidTest-results`.
 
-## Not verified / remaining owner actions
+## Limits
 
-- No real cloud project connection, cloud rules deployment, Functions deployment,
-  billing, production signing or Firebase authentication workflow was tested.
-  Cloud build success with synthetic values is not cloud connectivity evidence.
-- GitHub Actions commands passed locally; remote run status is available on the
-  repository/PR. The shared remote is now `git@github.com:jiayuliusc/SplitSmart.git`.
-  Team invitations and branch protection/check requirements remain owner-managed.
-- Native Windows instructions and the `.bat` wrapper are included; Windows and
-  Linux execution were not tested on this macOS host. Run the README workflow on
-  those platforms before claiming support has been exercised there.
-- API 26–34 devices, physical devices, and other screen sizes were not exercised.
-- No product feature, authorization flow, financial/concurrency algorithm,
-  durability target or performance threshold has been implemented or tested.
+- No cloud deployment, live email delivery, billing, signing or real-project
+  connectivity was exercised. Cloud setup must enable the email/password provider,
+  deploy the reviewed rules/indexes/functions and configure the matching region.
+- Deletion uses a durable job and retry-enabled event trigger. Production operators
+  must monitor stalled jobs and re-drive cleanup if the platform retry window expires;
+  no public administrative cleanup endpoint is exposed.
+- Only API 35 on the reference AVD was exercised. API 26–34, physical devices,
+  other sizes, and native Windows execution remain unverified locally.
+- No 500-transaction benchmark, financial algorithm, cross-group summary or X06
+  behavior is claimed by these tests.
+
+## Earlier baseline evidence
+
+The November 1 infrastructure checks verified wrapper checksums, local/cloud
+compilation (cloud used synthetic properties only), emulator routing, and the
+signed-out diagnostic read. The November 2 contract baseline added 5 Java and 3
+TypeScript shared-fixture checks. Those commits intentionally contained no product
+implementation; the feature results above supersede that limitation for this scope.
