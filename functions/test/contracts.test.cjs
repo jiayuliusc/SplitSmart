@@ -107,5 +107,5 @@ test('every callable has fixtures and ownership; only authorized identity/group 
     assert.ok(fixture.cases.some(c => c.type === `${name}.request`));
     assert.ok(fixture.cases.some(c => c.type === `${name}.response`));
   }
-  assert.deepEqual(Object.keys(require('../lib/index.js')).sort(), ['completeProfile', 'updateProfileName', 'createGroup', 'addGroupMember', 'updateGroup', 'deleteGroup', 'getGroupMemberProfiles', 'cleanupDeletedGroup'].sort());
+  assert.deepEqual(Object.keys(require('../lib/index.js')).sort(), ['completeProfile', 'updateProfileName', 'createGroup', 'addGroupMember', 'updateGroup', 'deleteGroup', 'getGroupMemberProfiles', 'cleanupDeletedGroup', 'createExpense', 'updateExpense', 'deleteExpense', 'getGroupLedger'].sort());
 });

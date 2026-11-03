@@ -55,4 +55,21 @@
         <item quantity="other">%1$d members</item>
     </plurals>
     <string name="groups_missing_scope">This group link is incomplete. Return to your groups.</string>
+    <string name="expenses_title">Expenses</string>
+    <string name="expenses_add">Record expense</string>
+    <string name="expenses_empty">No expenses recorded yet.</string>
+    <string name="expenses_create_title">Record an expense</string>
+    <string name="expenses_create_intro">Enter the total amount, payer, participants, and category.</string>
+    <string name="expenses_item_title">Title</string>
+    <string name="expenses_amount">Amount ($)</string>
+    <string name="expenses_payer">Paid by</string>
+    <string name="expenses_category">Category</string>
+    <string name="expenses_note">Note (optional)</string>
+    <string name="expenses_participants">Participants</string>
+    <string name="expenses_detail_title">Expense details</string>
+    <string name="expenses_date">Date</string>
+    <string name="expenses_delete">Delete expense</string>
+    <string name="expenses_delete_title">Delete this expense?</string>
+    <string name="expenses_delete_message">This permanently deletes this expense record.</string>
+    <string name="expenses_shares_title">Shares</string>
 </resources>

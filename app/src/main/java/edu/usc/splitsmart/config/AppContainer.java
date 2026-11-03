@@ -6,16 +6,17 @@ import android.os.Looper;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Executor;
 import edu.usc.splitsmart.data.firebase.*;
-import edu.usc.splitsmart.service.AuthService;
-import edu.usc.splitsmart.service.GroupService;
+import edu.usc.splitsmart.service.*;
+import edu.usc.splitsmart.service.expenses.DefaultExpenseService;
 import edu.usc.splitsmart.service.identity.DefaultAuthService;
 import edu.usc.splitsmart.service.groups.DefaultGroupService;
 
 /** Manual dependency wiring; add agreed repository/service instances as features arrive. */
-public final class AppContainer implements IdentityGroupServices {
+public final class AppContainer implements FeatureServices {
     private final FirebaseClients firebaseClients;
     private final AuthService auth;
     private final GroupService groups;
+    private final ExpenseService expenses;
 
     AppContainer(Context context) {
         firebaseClients = new FirebaseClients(context);
@@ -27,6 +28,8 @@ public final class AppContainer implements IdentityGroupServices {
         auth = new DefaultAuthService(new FirebaseAuthRepository(firebaseClients.getAuth(), delivery),
             new FirebaseUserRepository(repositories), delivery);
         groups = new DefaultGroupService(new FirebaseGroupRepository(repositories), delivery);
+        FirebaseExpenseRepository expenseRepo = new FirebaseExpenseRepository(repositories);
+        expenses = new DefaultExpenseService(expenseRepo, expenseRepo, delivery);
     }
 
     /** Infrastructure seam for repository construction and the local instrumentation check. */
@@ -35,4 +38,8 @@ public final class AppContainer implements IdentityGroupServices {
     }
     @Override public AuthService auth() { return auth; }
     @Override public GroupService groups() { return groups; }
+    @Override public ExpenseService expenses() { return expenses; }
+    @Override public BalanceService balances() { return null; }
+    @Override public SettlementService settlements() { return null; }
+    @Override public HistoryService history() { return null; }
 }

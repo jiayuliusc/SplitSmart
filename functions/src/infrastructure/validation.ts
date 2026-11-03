@@ -56,3 +56,81 @@ export function groupDraft(value: unknown): {name: string; description?: string}
   return {name: string(data.name, "name").trim(),
     ...(data.description === undefined ? {} : {description: string(data.description, "description", 1000, true)})};
 }
+
+export function cents(value: unknown, field = "amountCents"): string {
+  requireThat(typeof value === "string" && /^(0|[1-9][0-9]*)$/.test(value), "VALIDATION", "Invalid cents.", field);
+  const amount = BigInt(value);
+  requireThat(amount > 0n && amount <= 9007199254740991n, "OUT_OF_RANGE", "Amount is outside supported range.", field);
+  return value;
+}
+
+export function localDate(value: unknown): string {
+  requireThat(typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value), "VALIDATION", "Invalid local date.", "localDate");
+  return value;
+}
+
+const CATEGORIES = new Set(["FOOD", "HOUSING", "TRANSPORTATION", "ENTERTAINMENT", "OTHER"]);
+const SPLIT_METHODS = new Set(["EQUAL", "EXACT", "PERCENTAGE"]);
+
+export function category(value: unknown): "FOOD" | "HOUSING" | "TRANSPORTATION" | "ENTERTAINMENT" | "OTHER" {
+  requireThat(typeof value === "string" && CATEGORIES.has(value), "VALIDATION", "Invalid category.", "category");
+  return value as "FOOD" | "HOUSING" | "TRANSPORTATION" | "ENTERTAINMENT" | "OTHER";
+}
+
+export function splitMethod(value: unknown): "EQUAL" | "EXACT" | "PERCENTAGE" {
+  requireThat(typeof value === "string" && SPLIT_METHODS.has(value), "VALIDATION", "Invalid split method.", "splitMethod");
+  return value as "EQUAL" | "EXACT" | "PERCENTAGE";
+}
+
+export function expenseDraft(value: unknown): {
+  title: string;
+  amountCents: string;
+  payerId: string;
+  participantIds: string[];
+  splitMethod: "EQUAL" | "EXACT" | "PERCENTAGE";
+  category: "FOOD" | "HOUSING" | "TRANSPORTATION" | "ENTERTAINMENT" | "OTHER";
+  note?: string;
+  splitInputs: Array<{participantId: string; amountCents?: string; basisPoints?: number}>;
+} {
+  const data = object(value, ["title", "amountCents", "payerId", "participantIds", "splitMethod", "category", "splitInputs"], ["note"]);
+  const titleStr = string(data.title, "title").trim();
+  const amountStr = cents(data.amountCents, "amountCents");
+  const payer = id(data.payerId, "payerId");
+  requireThat(Array.isArray(data.participantIds), "VALIDATION", "Participant IDs must be an array.", "participantIds");
+  const rawParts = data.participantIds as unknown[];
+  const parts = [...new Set(rawParts.map(p => id(p, "participantId")))].sort();
+  requireThat(parts.length >= 2, "VALIDATION", "At least two participants are required.", "participantIds");
+  requireThat(parts.includes(payer), "VALIDATION", "Payer must be included in participants.", "payerId");
+  const cat = category(data.category);
+  const method = splitMethod(data.splitMethod);
+  const noteStr = data.note === undefined ? undefined : string(data.note, "note", 1000, true);
+
+  requireThat(Array.isArray(data.splitInputs), "VALIDATION", "Split inputs must be an array.", "splitInputs");
+  const rawInputs = data.splitInputs as unknown[];
+  const inputs: Array<{participantId: string; amountCents?: string; basisPoints?: number}> = [];
+  for (const rawInput of rawInputs) {
+    const inputObj = object(rawInput, ["participantId"], ["amountCents", "basisPoints"]);
+    const pId = id(inputObj.participantId, "participantId");
+    let amt: string | undefined;
+    let bp: number | undefined;
+    if (inputObj.amountCents !== undefined) {
+      requireThat(typeof inputObj.amountCents === "string" && /^(0|[1-9][0-9]*)$/.test(inputObj.amountCents), "VALIDATION", "Invalid input amount.", "amountCents");
+      amt = inputObj.amountCents as string;
+    }
+    if (inputObj.basisPoints !== undefined) {
+      requireThat(Number.isInteger(inputObj.basisPoints) && (inputObj.basisPoints as number) >= 0 && (inputObj.basisPoints as number) <= 10000, "VALIDATION", "Invalid basis points.", "basisPoints");
+      bp = inputObj.basisPoints as number;
+    }
+    inputs.push({participantId: pId, ...(amt !== undefined ? {amountCents: amt} : {}), ...(bp !== undefined ? {basisPoints: bp} : {})});
+  }
+  return {
+    title: titleStr,
+    amountCents: amountStr,
+    payerId: payer,
+    participantIds: parts,
+    splitMethod: method,
+    category: cat,
+    ...(noteStr !== undefined ? {note: noteStr} : {}),
+    splitInputs: inputs,
+  };
+}
