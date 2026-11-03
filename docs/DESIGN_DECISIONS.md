@@ -12,34 +12,34 @@ Reviewed inputs supplied by the user:
   project ZIP and implementation PDF with requirements/design changes. This
   foundation is not that final implementation or report.
 
-The initial task delivered infrastructure only. The follow-up now adds **contract
-baseline v1**: shared Java values/interfaces, matching TypeScript payloads, common
-serialization fixtures and concrete coordination protocols. The catalog's larger
-foundation backlog still does not authorize product behavior here. Screens,
-registration/login/group workflows, algorithms, persistence implementations and
-callable handlers remain unimplemented. The supplied documents are unchanged.
+The initial work delivered infrastructure and contract baseline v1. The current
+user-authorized feature adds catalog section 1 (user/group management) and X01
+(password reset), using `SplitSmart_Feature_Catalog (1).pdf`, updated November 2,
+2026. X06 email verification and every other optional/catalog feature are excluded.
+The [implementation map](USER_GROUP_IMPLEMENTATION.md) traces this scope to code.
+The supplied documents are unchanged.
 
 ## Decisions retained for later features
 
 | Catalog decision | Coordination implication |
 | --- | --- |
 | D01 | Native Android Java/XML, Material, ViewModel and LiveData; correct the old "web" preface in the final report. |
-| D02 | Future successful registration includes completed profile and automatic sign-in; recover incomplete profiles. |
+| D02 | Successful registration includes completed profile and automatic sign-in; recover incomplete profiles. |
 | D03–D04 | Payer participates among at least two distinct members; category required. |
 | D05–D06 | Private 10-digit string USC ID and unique reservation; email/ID format checking does not prove USC identity. |
 | D07 | Core history/summaries are group scoped; cross-group dashboard is optional future work. |
 | D08 | Firestore supports integer values; Java long cents and integer basis points are the agreed client representation. |
 | D09 | Preserve local calendar date; add authoritative timestamps and deterministic ID tie-break. |
 | D10 | Share plain balance calculation across Balance/Settlement services rather than a service cycle. |
-| D11 | Retain a TypeScript callable boundary for authoritative validation and mutations; v1 supplies interfaces/payloads only. |
+| D11 | Retain a TypeScript callable boundary for authoritative validation and mutations; identity/group handlers now implement the v1 payloads. |
 | D12 | Private User and shared MemberProfile are distinct; no USC ID in member output. |
-| D13 | V1 freezes deterministic splitting expectations, settlement replacement, signed credits, idempotency and deletion protocols; implementations remain future work. |
+| D13 | V1 freezes deterministic splitting expectations, settlement replacement, signed credits, idempotency and deletion protocols. Identity/group receipts and cleanup are implemented; financial algorithms remain future work. |
 | D14 | Original quality targets remain verification goals; this scaffold claims no application performance result. |
 
 The Functions boundary changes 2.2's client-only mutation design because a
 modified or concurrent client cannot be trusted to enforce shared financial
-constraints. Services still perform local validation and previews. All cloud
-rules remain denied until actual authorized features are reviewed. Server SDK
+constraints. Services still perform local validation and previews. Product writes remain denied; self-profile and active-member group reads are the
+only new read grants. Server SDK
 operations bypass rules and require independent authorization.
 
 ## Foundation-specific choices
@@ -63,5 +63,5 @@ operations bypass rules and require independent authorization.
   newer group state. See SCHEMA.md/CONTRACTS.md; there is no alternate draft schema.
 
 These choices should be reflected in the final Project 2.3 change report once the
-features exist. The supplied documents are left unchanged; optional X features
+features exist. The supplied documents are left unchanged; only X01 is authorized in this feature; X06 and all other optional additions
 remain out of scope.

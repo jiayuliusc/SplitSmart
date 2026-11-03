@@ -3,7 +3,7 @@
 Contract baseline v1 adds immutable values and public interfaces to the existing
 Android/Firebase foundation. [SCHEMA.md](SCHEMA.md) is canonical for fields and
 representations; [CONTRACTS.md](CONTRACTS.md) is canonical for APIs, serialization,
-transactions, retries and navigation. No feature behavior is implemented.
+transactions, retries and navigation. Identity/group management and X01 are implemented; other features remain contracts.
 
 ```text
 Screen → ViewModel → Service interface → Repository interface
@@ -30,14 +30,14 @@ Firestore and Functions route to 10.0.2.2; Firestore uses memory cache and the
 existing diagnostic explicitly requests Source.SERVER. Infrastructure configuration
 and the diagnostic test are the only SDK-import exceptions outside adapters.
 
-`config/FeatureServices` now defines the future composition-root access contract;
-it has no fake implementation and is not called by the placeholder. Features use
-constructor-injected services in their ViewModels and repositories in their
-services. Only real implementations will be wired. See the navigation section of
-CONTRACTS.md for Activity arguments, session observation, factories and refreshes.
+AppContainer implements IdentityGroupServices with real Auth/Group services and
+Firebase repositories. FeatureServices extends this available subset; unfinished
+services are not stubbed. ViewModels receive services through FeatureFactory and
+SavedStateHandle. FirebaseRepositoryContext centralizes account-scoped caches,
+queued main-thread callbacks and at most three exact-payload transport retries.
 
 Use FeatureScreen, FeatureViewModel, FeatureService, EntityRepository and
-FirebaseEntityRepository names. Public services are currently interfaces; name
+FirebaseEntityRepository names. Public services remain interfaces; name
 an implementation DefaultExpenseService (for example) rather than replacing the
 shared interface. Domain records use singular nouns and component accessors such
 as amountCents(), not duplicate JavaBean getters. Java 17 records compile through
@@ -56,7 +56,7 @@ LocalDate/YearMonth, timestamps Instant. Optional fields and list ordering are
 fixed by SCHEMA.md. Callbacks, cancellation, read freshness and failures are fixed
 by CONTRACTS.md; do not invent another error/result abstraction on a feature branch.
 
-All product client writes remain denied. Future callable operations must authorize
+All product client writes remain denied. Callable operations must authorize
 and validate independently because Admin SDK bypasses rules. Financial handlers
 must use the common revision/receipt/full-ledger transaction protocol; a UI check
 or revision field alone does not provide this guarantee. History/monthly summaries

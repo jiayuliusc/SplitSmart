@@ -7,4 +7,14 @@
         <item name="colorOnSecondary">#1D1D1D</item>
     </style>
     <dimen name="foundation_padding">24dp</dimen>
+    <style name="Theme.SplitSmart.Feature" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">#990000</item>
+        <item name="colorPrimaryVariant">#660000</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#FFC72C</item>
+        <item name="colorOnSecondary">#30292A</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:windowBackground">#FAF7F4</item>
+    </style>
 </resources>

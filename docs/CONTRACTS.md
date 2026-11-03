@@ -1,11 +1,10 @@
 # Shared contracts — baseline v1
 
-This document and [SCHEMA.md](SCHEMA.md) replace the earlier proposals. Public Java
-records/interfaces and matching TypeScript JSON shapes are implemented; no feature
-service, repository implementation, serializer, callable handler or financial
-algorithm exists. `functions/src/index.ts` still exports nothing. The feature
-implementer owns private helper classes, ViewModel state and adapter details while
-preserving these signatures and observable semantics.
+This document and [SCHEMA.md](SCHEMA.md) define contract baseline v1. Identity/group
+management and X01 now implement their listed services, repositories, codecs and
+seven callables. Financial feature interfaces remain definitions only. The additive
+X01 auth method and composition subset below do not change stored or wire schemas.
+See [implementation map](USER_GROUP_IMPLEMENTATION.md) for scope and verification.
 
 ## Source of truth
 
@@ -24,7 +23,7 @@ Java `WireModels` uses strings for cents/revisions and a plain Timestamp record;
 domain objects use `long`, `Instant` and `LocalDate`. Repository adapters must map
 explicitly between them. Never hand a domain record directly to the Firebase
 callable encoder, or serialize an SDK snapshot into a service result. Gson is a
-test dependency only; this baseline makes no production codec choice.
+test dependency only. IdentityCodec explicitly maps supported user/group SDK and callable values.
 
 ## Asynchronous and read contract
 
@@ -33,7 +32,11 @@ Every repository/service operation returns `AsyncOperation` and uses
 Android main thread, **never inline**, even for a validation error or cache hit.
 Implementers inject an executor/dispatcher at the composition root so services
 stay plain Java. Exactly one terminal callback occurs unless cancelled. `Void`
-success for signOut is the sole permitted null success value.
+success is permitted only for signOut and sendPasswordResetEmail. Reset success
+acknowledges processing the reset request; it does not prove account existence or
+mail delivery. Normalize Auth's unknown-user response to the same neutral success
+used for an accepted request, while preserving provider/transport failures. The
+confirmation must not disclose whether an email is registered.
 
 `cancel()` is idempotent, may be called from any thread, detaches listeners, and
 suppresses callbacks that have not started when cancellation returns. A callback
@@ -80,7 +83,7 @@ expected revision and explicit refresh, not by pretending a snapshot is live.
 The declarations below mirror the compiling sources. `Callback`, `AsyncOperation`,
 `ReadPolicy`, `ReadResult` and `MutationResult` come from `domain.contract`; other
 value types come from `domain.model`. Source files remain authoritative for Java
-syntax. All methods below have no implementation in this baseline.
+syntax. Identity/group methods now have real implementations; other feature methods remain interfaces.
 
 ```java
 interface AuthRepository {
@@ -89,6 +92,7 @@ interface AuthRepository {
     AsyncOperation signUp(String email, String password, Callback<Session> callback);
     AsyncOperation signIn(String email, String password, Callback<Session> callback);
     AsyncOperation signOut(Callback<Void> callback);
+    AsyncOperation sendPasswordResetEmail(String email, Callback<Void> callback);
 }
 ```
 
@@ -143,6 +147,7 @@ interface AuthService {
     AsyncOperation register(String email, String password, ProfileDraft profile, String requestId, Callback<MutationResult<User>> callback);
     AsyncOperation signIn(String email, String password, Callback<Session> callback);
     AsyncOperation signOut(Callback<Void> callback);
+    AsyncOperation sendPasswordResetEmail(String email, Callback<Void> callback);
     AsyncOperation getCurrentProfile(ReadPolicy policy, Callback<ReadResult<User>> callback);
     AsyncOperation completeProfile(ProfileDraft profile, String requestId, Callback<MutationResult<User>> callback);
     AsyncOperation updateName(String name, String requestId, Callback<MutationResult<User>> callback);
@@ -358,7 +363,7 @@ hex hash. Compare the stored canonical string as well as the hash; semantic chan
 in optional fields, dates, scope, revision or array order are different payloads.
 Receipts have no TTL in v1; deleting a group must not delete them. Never retry a
 known failure with changed input under the old key. Receipt paths are client-denied.
-Profile/group mutation implementations must use the same receipt conventions;
+Profile/group mutations use the same receipt conventions;
 profile completion atomically claims the private USC ID with the profile/receipt.
 
 Firestore supports transactional query reads and serializable isolation; document
@@ -400,7 +405,11 @@ GROUP_DELETING; replaying the accepted key returns its original DELETING respons
 
 The marker blocks child creation during cleanup. Merely deleting a parent would
 leave subcollections behind; the [official deletion guidance](https://firebase.google.com/docs/firestore/manage-data/delete-data)
-requires explicit child cleanup. No cleanup worker is implemented in this PR.
+requires explicit child cleanup. `functions/src/groups/cleanup.ts` implements this worker. The retry-enabled
+`cleanupDeletedGroup` Firestore creation trigger resumes the durable job. Each
+delivery attempts at most 100 batches; remaining work throws for redelivery.
+Monitor failed deliveries and resume retained DELETING jobs if the platform retry
+window expires. No financial create/edit/delete handler is exported.
 
 ### Scaling and failure boundary
 
@@ -442,7 +451,7 @@ algorithms added to the baseline.
 
 ## Navigation and dependency wiring
 
-There is currently one Activity and no navigation library. Retain explicit Android
+Identity/group Activities use no navigation library. Retain explicit Android
 Activity intents and Activity Result APIs as features arrive; do not introduce a
 competing global navigator. [`NavigationContract`](../app/src/main/java/edu/usc/splitsmart/presentation/navigation/NavigationContract.java)
 freezes keys: GROUP_ID, EXPENSE_ID, SETTLEMENT_ID are String extras, and RESULT_REQUEST_ID /
@@ -454,20 +463,17 @@ never an implicit choice of the last-opened group.
 ViewModels obtain Session through injected AuthService (getSession/observeSession),
 and scoped IDs from the host's saved arguments. Persist IDs/draft state through
 SavedStateHandle; reacquire authoritative data after process death. Route an
-unauthenticated session to the future sign-in flow and a missing private profile
+unauthenticated session to the sign-in flow and a missing private profile
 to profile completion. Backend authorization remains mandatory even with a valid
 local route.
 
-[`FeatureServices`](../app/src/main/java/edu/usc/splitsmart/config/FeatureServices.java)
-is an interface defining auth(), groups(), expenses(), balances(), settlements()
-and history(). The foundation maintainer will make the real composition root
-provide it **only when real implementations exist**. The current AppContainer
-still constructs SDK clients only and the placeholder never calls fake/unavailable
-service getters. Each feature supplies a ViewModelProvider.Factory taking its
-specific service interfaces and route IDs; those services receive repository
-interfaces through constructor injection. Screens never fetch Firebase clients.
-Feature authors can compile against these interfaces and use private test fakes
-without changing Firebase initialization or introducing production fake success.
+[`IdentityGroupServices`](../app/src/main/java/edu/usc/splitsmart/config/IdentityGroupServices.java)
+provides auth()/groups() and is implemented by AppContainer with real dependencies.
+FeatureServices extends this subset and retains the other four feature accessors;
+AppContainer does not implement unfinished service getters. FeatureFactory supplies
+SavedStateHandle and constructor-injected services to ViewModels. Screens never
+fetch Firebase clients. Pending mutation IDs and exact payloads survive configuration
+changes/process recreation through SavedStateHandle. Password fields are not saved.
 
 After an acknowledged mutation, a child sets RESULT_OK with the immutable requestId,
 groupId and new groupRevision and finishes. Parent ViewModels verify the current
@@ -475,5 +481,5 @@ session/scope, then request FRESH through their service. On reopen/resume or man
 refresh they also request FRESH, covering changes from other clients. Cancellation
 or unknown outcome sends no successful result; retry the same request first.
 The result is an invalidation hint, not authoritative balance data. Group deletion
-acceptance returns to the group list and refreshes it. No navigation screen or
-result-dispatch implementation is supplied in this baseline.
+acceptance returns to the group list and refreshes it. Identity/group Activities implement these routes. Group creation/deletion return
+results; detail changes remain visible in place and set the same result metadata. The parent reloads on resume/results. Back navigation waits for pending mutations to resolve.

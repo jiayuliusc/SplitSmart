@@ -20,12 +20,20 @@
             android:authorities="${applicationId}.firebaseinitprovider"
             tools:node="remove" />
         <activity
-            android:name=".presentation.foundation.FoundationScreen"
+            android:name=".presentation.identity.LoginScreen"
+            android:theme="@style/Theme.SplitSmart.Feature"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".presentation.identity.RegisterScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
+        <activity android:name=".presentation.identity.CompleteProfileScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
+        <activity android:name=".presentation.identity.PasswordResetScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
+        <activity android:name=".presentation.identity.ProfileScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
+        <activity android:name=".presentation.groups.GroupListScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
+        <activity android:name=".presentation.groups.CreateGroupScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
+        <activity android:name=".presentation.groups.GroupDetailScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
     </application>
 </manifest>

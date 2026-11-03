@@ -45,7 +45,7 @@ android {
             buildConfigField 'boolean', 'USE_FIREBASE_EMULATORS', 'true'
             buildConfigField 'String', 'FIREBASE_PROJECT_ID', '"demo-splitsmart"'
             buildConfigField 'String', 'FIREBASE_APPLICATION_ID', '"1:1234567890:android:0000000000000000000000"'
-            buildConfigField 'String', 'FIREBASE_API_KEY', '"AIzaSyDemoSplitSmartEmulatorOnly000000000"'
+            buildConfigField 'String', 'FIREBASE_API_KEY', '"AIzaSyDemoSplitSmartEmulatorOnly0000000"'
             buildConfigField 'String', 'FUNCTIONS_REGION', '"us-central1"'
         }
         cloud {
