@@ -18,7 +18,7 @@ import edu.usc.splitsmart.presentation.identity.LoginScreen;
 
 public abstract class FeatureScreen extends AppCompatActivity {
     private final Set<Integer> rendering = new HashSet<>();
-    protected IdentityGroupServices services() { return ((SplitSmartApplication) getApplication()).getContainer(); }
+    protected FeatureServices services() { return ((SplitSmartApplication) getApplication()).getContainer(); }
     protected void screen(int layout) {
         EdgeToEdge.enable(this); setContentView(layout);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.feature_root), (view, insets) -> {
