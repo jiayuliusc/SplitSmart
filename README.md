@@ -15,7 +15,7 @@ or a service account. The first dependency/emulator download needs internet.
 | Component | Pinned / supported version |
 | --- | --- |
 | Android Studio | Meerkat 2024.3.1 Patch 2 baseline; newer stable IDEs that support AGP 8.9 are usable without upgrading project files |
-| Gradle runtime JDK | JDK 21 (verified with 21.0.8); CI uses Temurin 21.0.8+9 |
+| Gradle runtime JDK | JDK 21 (verified locally with 21.0.8); CI uses the latest available Temurin 21 |
 | Java source/bytecode | Java 17 |
 | Android Gradle Plugin / wrapper | 8.9.2 / 8.11.1 |
 | SDK compile / target / minimum | API 35 / API 35 / API 26 |
