@@ -20,13 +20,23 @@ public final class PendingOperation<T> implements AsyncOperation, Callback<T> {
         this.delivery = delivery; this.callback = callback; this.current = current;
     }
     public synchronized boolean isCancelled() { return cancelled; }
-    public synchronized void attach(AsyncOperation child) {
-        if (cancelled) child.cancel(); else children.add(child);
+    public void attach(AsyncOperation child) {
+        boolean cancelChild;
+        synchronized (this) {
+            cancelChild = cancelled;
+            if (!cancelChild) children.add(child);
+        }
+        if (cancelChild) child.cancel();
     }
-    @Override public synchronized void cancel() {
-        cancelled = true;
-        children.forEach(AsyncOperation::cancel);
-        children.clear();
+    @Override public void cancel() {
+        List<AsyncOperation> attached;
+        synchronized (this) {
+            cancelled = true;
+            attached = new ArrayList<>(children);
+            children.clear();
+        }
+        // Child callbacks may consult their parent; never hold both operation locks.
+        attached.forEach(AsyncOperation::cancel);
     }
     private void deliver(Runnable action) {
         delivery.execute(() -> {

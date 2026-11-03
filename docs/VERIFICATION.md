@@ -9,7 +9,7 @@ summary and other optional features remain unimplemented. Started from merged
 | Check | Local result |
 | --- | --- |
 | Android app + test APKs | PASS: `:app:assembleLocalDebug :app:assembleLocalDebugAndroidTest` |
-| Java unit/compatibility tests | PASS: `:app:testLocalDebugUnitTest`, 12 tests, no failures/errors/skips |
+| Java unit/compatibility tests | PASS: `:app:testLocalDebugUnitTest`, 13 tests, no failures/errors/skips |
 | Strict Android lint | PASS: `:app:lintLocalDebug`, warnings treated as errors |
 | TypeScript contract build/checks | PASS: `npm run check:contracts`, 3 compatibility checks |
 | Firebase emulator feature tests | PASS: `npm run check:emulators`, host/rules diagnostic plus 11 tests including nested cases |
@@ -17,7 +17,8 @@ summary and other optional features remain unimplemented. Started from merged
 
 The Java tests cover exact USC domain and ASCII ID validation, queued callbacks,
 Auth success/profile failure with profile-only retry, cancellation, session changes,
-login/logout, and reset-email confirmation/transport errors. Shared fixture tests
+login/logout, reset-email confirmation/transport errors, and cancellation racing
+a child callback without lock-order deadlock. Shared fixture tests
 still cover all v1 wire definitions and immutable collection ownership.
 
 The backend tests exercise real Auth/Firestore/Functions emulators: duplicate email,
@@ -40,7 +41,8 @@ USC ID rejected its profile. Test screenshots contain synthetic identities only.
 Pre-PR verification fixed an emulator API-key format rejected by the Functions
 SDK, resource/lint issues, Auth lookup dependency during receipt replay, navigation
 that could discard pending mutation intent, and stale private screen text after
-access loss. Codex PR review findings and remote CI results belong to the PR;
+access loss. A cross-thread parent/child cancellation regression was added during
+PR review, with child cancellation moved outside the parent lock. Codex PR review findings and remote CI results belong to the PR;
 local results alone do not establish a GitHub check's status.
 
 ## Environment and reproduction
