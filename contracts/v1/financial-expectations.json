@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Acceptance expectations only; no financial algorithms are implemented or evaluated by these fixtures.",
+  "scenarios": [
+    {
+      "id": "equal-30",
+      "given": {"payerId": "A", "amountCents": "3000", "participantIds": ["A", "B", "C"], "splitMethod": "EQUAL"},
+      "expected": {"sharesCents": {"A": "1000", "B": "1000", "C": "1000"}, "viewerA": {"B": "1000", "C": "1000"}, "viewerB": {"A": "-1000", "C": "0"}}
+    },
+    {
+      "id": "settle-4",
+      "after": "equal-30",
+      "given": {"payerId": "B", "payeeId": "A", "amountCents": "400"},
+      "expected": {"viewerA": {"B": "600", "C": "1000"}, "viewerB": {"A": "-600", "C": "0"}, "viewerATotalToReceiveCents": "1600"}
+    },
+    {
+      "id": "concurrent-overpayment",
+      "given": {"debtCents": "600", "expectedRevision": "7", "distinctRequestAmountsCents": ["400", "400"]},
+      "expected": {"successCount": 1, "conflictCount": 1, "revision": "8", "remainingDebtCents": "200", "new400CentRequestAtRevision8": "VALIDATION"}
+    },
+    {
+      "id": "monthly-excludes-settlements",
+      "given": {"month": "2026-11", "expense": {"amountCents": "3000", "category": "FOOD", "localDate": "2026-11-02"}, "settlement": {"amountCents": "400", "localDate": "2026-11-02"}},
+      "expected": {"expenseCount": 1, "totalCents": "3000", "categoryTotalsCents": {"FOOD": "3000", "HOUSING": "0", "TRANSPORTATION": "0", "ENTERTAINMENT": "0", "OTHER": "0"}}
+    },
+    {
+      "id": "equal-10-remainder",
+      "given": {"amountCents": "1000", "participantIds": ["A", "B", "C"], "splitMethod": "EQUAL"},
+      "expected": {"sharesCents": {"A": "334", "B": "333", "C": "333"}, "allocatedCents": "1000"}
+    }
+  ]
+}

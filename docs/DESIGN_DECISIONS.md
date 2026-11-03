@@ -12,11 +12,12 @@ Reviewed inputs supplied by the user:
   project ZIP and implementation PDF with requirements/design changes. This
   foundation is not that final implementation or report.
 
-The user's infrastructure-only request controls this task. The catalog's page 10
-and D11 say its larger foundation should implement identity/groups, shared models
-and calculators. Those are **not implemented here**, because the current request
-explicitly excludes all product features and financial algorithms. The project
-assignment's instruction to implement the full app is context for later team work.
+The initial task delivered infrastructure only. The follow-up now adds **contract
+baseline v1**: shared Java values/interfaces, matching TypeScript payloads, common
+serialization fixtures and concrete coordination protocols. The catalog's larger
+foundation backlog still does not authorize product behavior here. Screens,
+registration/login/group workflows, algorithms, persistence implementations and
+callable handlers remain unimplemented. The supplied documents are unchanged.
 
 ## Decisions retained for later features
 
@@ -30,9 +31,9 @@ assignment's instruction to implement the full app is context for later team wor
 | D08 | Firestore supports integer values; Java long cents and integer basis points are the agreed client representation. |
 | D09 | Preserve local calendar date; add authoritative timestamps and deterministic ID tie-break. |
 | D10 | Share plain balance calculation across Balance/Settlement services rather than a service cycle. |
-| D11 | Retain a TypeScript callable boundary for authoritative validation and mutations; this task supplies infrastructure only. |
+| D11 | Retain a TypeScript callable boundary for authoritative validation and mutations; v1 supplies interfaces/payloads only. |
 | D12 | Private User and shared MemberProfile are distinct; no USC ID in member output. |
-| D13 | Future deterministic splitting, settlement edit semantics, signed credits, idempotency and resumable deletion need coordinated implementation. |
+| D13 | V1 freezes deterministic splitting expectations, settlement replacement, signed credits, idempotency and deletion protocols; implementations remain future work. |
 | D14 | Original quality targets remain verification goals; this scaffold claims no application performance result. |
 
 The Functions boundary changes 2.2's client-only mutation design because a
@@ -51,8 +52,15 @@ operations bypass rules and require independent authorization.
   emulator resets predictable, not to define future cloud durability behavior.
 - A synthetic exact-path read in the local test APK proves SDK connectivity.
   Auth flows and open rules are unnecessary for that check.
-- Package docs and draft schema/interfaces reserve ownership without inventing
-  unconsumed classes. Model and contract agreement is the next team integration step.
+- V1 replaces the empty shared packages with immutable Java 17 records and plain
+  interfaces. Constructors enforce shape/ownership of collections, not financial rules.
+- V1 fixes money to bounded canonical decimal strings on the wire, with exact
+  intermediate arithmetic; SDK timestamps map to microsecond-precision seconds/nanos.
+- A complete transactional ledger snapshot plus a common group revision and durable
+  receipts is the authoritative mutation protocol. Revision alone was insufficient.
+- Receipts move outside groups to survive deletion; embedded shares are ordered
+  arrays. Expected revision guards prevent stale drafts from silently overwriting
+  newer group state. See SCHEMA.md/CONTRACTS.md; there is no alternate draft schema.
 
 These choices should be reflected in the final Project 2.3 change report once the
 features exist. The supplied documents are left unchanged; optional X features
