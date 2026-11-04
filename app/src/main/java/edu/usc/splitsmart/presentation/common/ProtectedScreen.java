@@ -26,7 +26,11 @@ public abstract class ProtectedScreen extends FeatureScreen {
             } else if (access.user() != null) {
                 if (currentUid != null && !currentUid.equals(access.user().uid())) onAccessLost();
                 currentUid = access.user().uid(); onAuthorized(access.user());
-            } else { onAccessLost(); text(R.id.access_status, access.error() == null ? getString(R.string.identity_checking) : access.error()); }
+            } else {
+                onAccessLost(); text(R.id.access_status, getString(access.error() == null
+                    ? R.string.identity_checking : R.string.identity_retry_access_hint));
+                if (access.error() != null) showError(access.error());
+            }
         });
         getLifecycle().addObserver((LifecycleEventObserver) (source, event) -> {
             if (event == Lifecycle.Event.ON_RESUME) {

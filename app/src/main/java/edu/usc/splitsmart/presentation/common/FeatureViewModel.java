@@ -33,7 +33,7 @@ public abstract class FeatureViewModel extends ViewModel {
     protected void resolved() { saved.remove("mutationId"); saved.remove("mutationOperation"); saved.remove("mutationValues"); }
     protected void failed(AppError failure) {
         if (!failure.retryable() && failure.code() != ErrorCode.INTERNAL) resolved();
-        error.setValue(failure); message.setValue(failure.message()); busy.setValue(false);
+        message.setValue(""); error.setValue(failure); busy.setValue(false);
     }
     protected void done(String text) { resolved(); message.setValue(text); busy.setValue(false); }
     public void bindUser(String uid) {

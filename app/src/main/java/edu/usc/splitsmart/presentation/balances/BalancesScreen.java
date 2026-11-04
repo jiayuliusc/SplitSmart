@@ -29,6 +29,7 @@ public final class BalancesScreen extends ProtectedScreen {
         }
         model=new ViewModelProvider(this,new FeatureFactory(this,getIntent().getExtras(),
             saved -> new BalancesViewModel(saved,services().balances(),services().groups(),id))).get(BalancesViewModel.class);
+        bindErrors(model);
         model.content.observe(this,this::render);
         model.busy.observe(this,busy -> {
             show(R.id.feature_progress,Boolean.TRUE.equals(busy));

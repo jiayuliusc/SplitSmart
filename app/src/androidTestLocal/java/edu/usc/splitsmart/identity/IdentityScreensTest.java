@@ -66,7 +66,12 @@ public final class IdentityScreensTest {
         instrumentation.runOnMainSync(() -> ((TextView) activity.findViewById(id)).setText(value));
     }
     private void message(String contains) throws Exception {
-        await("message " + contains, () -> ((TextView) activity.findViewById(R.id.feature_message)).getText().toString().contains(contains));
+        await("message " + contains, () -> {
+            TextView status = activity.findViewById(R.id.feature_message);
+            TextView banner = activity.findViewById(R.id.feature_error_banner);
+            return status.getText().toString().contains(contains)
+                || (banner != null && banner.isShown() && banner.getText().toString().contains(contains));
+        });
     }
     private void capture(String name) throws Exception {
         instrumentation.waitForIdleSync();
@@ -89,6 +94,9 @@ public final class IdentityScreensTest {
             instrumentation.startActivitySync(new Intent(instrumentation.getTargetContext(), LoginScreen.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
             screen(LoginScreen.class); capture("login");
+            input(R.id.identity_email, "missing-" + suffix + "@usc.edu");
+            input(R.id.identity_password, "incorrect-password"); click(R.id.identity_submit);
+            message("Check your email and password"); capture("login-error-banner");
             click(R.id.identity_register_link); screen(RegisterScreen.class);
             input(R.id.identity_name, "Screen owner"); input(R.id.identity_email, email);
             input(R.id.identity_usc_id, uscId); input(R.id.identity_password, "screen-password");
@@ -100,6 +108,8 @@ public final class IdentityScreensTest {
             capture("groups");
             instrumentation.runOnMainSync(() -> ((ViewGroup) activity.findViewById(R.id.groups_rows)).getChildAt(0).performClick());
             screen(GroupDetailScreen.class); capture("group-details");
+            input(R.id.groups_email, "missing-member-" + suffix + "@usc.edu"); click(R.id.groups_add);
+            message("No completed SplitSmart account"); capture("member-error-banner");
             input(R.id.groups_name, "Updated screen group"); input(R.id.groups_description, "Unsaved description");
             Activity beforeRotation = activity;
             instrumentation.runOnMainSync(() -> { activity.findViewById(R.id.groups_description).requestFocus(); activity.recreate(); });
@@ -128,7 +138,9 @@ public final class IdentityScreensTest {
             input(R.id.identity_email, email); click(R.id.identity_submit); message("reset link has been requested"); capture("password-reset");
             input(R.id.identity_email, "missing-" + suffix + "@usc.edu"); click(R.id.identity_submit); message("reset link has been requested");
             click(R.id.feature_back); screen(LoginScreen.class);
-            input(R.id.identity_email, email); input(R.id.identity_password, "screen-password"); click(R.id.identity_submit); screen(GroupListScreen.class);
+            input(R.id.identity_email, email); input(R.id.identity_password, "incorrect-password");
+            click(R.id.identity_submit); message("Check your email and password");
+            input(R.id.identity_password, "screen-password"); click(R.id.identity_submit); screen(GroupListScreen.class);
             click(R.id.identity_logout); screen(LoginScreen.class);
             click(R.id.identity_register_link); screen(RegisterScreen.class);
             input(R.id.identity_name, "Recoverable account"); input(R.id.identity_email, otherEmail);
