@@ -36,7 +36,16 @@ public final class IdentityScreensTest {
             if (ready[0]) return;
             Thread.sleep(50);
         }
-        fail("Timed out: " + description);
+        capture("screen-timeout");
+        StringBuilder details = new StringBuilder();
+        instrumentation.runOnMainSync(() -> {
+            for (Activity current : ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)) {
+                details.append(current.getClass().getSimpleName());
+                TextView status = current.findViewById(R.id.feature_message);
+                if (status != null) details.append(": ").append(status.getText());
+            }
+        });
+        fail("Timed out: " + description + " [" + details + "]");
     }
     private void screen(Class<? extends Activity> type) throws Exception {
         await(type.getSimpleName(), () -> {

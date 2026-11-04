@@ -1,10 +1,18 @@
 import {Auth} from "firebase-admin/auth";
 import {Firestore, Timestamp, FieldValue} from "firebase-admin/firestore";
-import {GroupMutationResponse, LedgerResponse, Expense, ExpenseShare, DeletedRecord} from "../contracts/v1";
+import {GroupMutationResponse, LedgerResponse, Expense, ExpenseShare, DeletedRecord, Settlement} from "../contracts/v1";
 import {requireThat} from "../infrastructure/errors";
 import * as validate from "../infrastructure/validation";
 import {mutate} from "../infrastructure/receipts";
 import {authorizedGroup, time} from "../infrastructure/records";
+
+function storedCents(value: unknown, allowZero = false): `${bigint}` {
+  const text = typeof value === "number" && Number.isSafeInteger(value) ? String(value) : value;
+  requireThat(typeof text === "string" && /^(0|[1-9][0-9]*)$/.test(text), "INTERNAL", "Invalid stored money.");
+  const cents = BigInt(text);
+  requireThat(cents >= (allowZero ? 0n : 1n) && cents <= BigInt(Number.MAX_SAFE_INTEGER), "INTERNAL", "Stored money is outside the supported range.");
+  return text as `${bigint}`;
+}
 
 export function expenseRecord(expenseId: string, groupId: string, data: FirebaseFirestore.DocumentData): Expense {
   requireThat(data.schemaVersion === 1, "INTERNAL", "Unsupported expense version.");
@@ -12,7 +20,7 @@ export function expenseRecord(expenseId: string, groupId: string, data: Firebase
     expenseId,
     groupId,
     title: data.title,
-    amountCents: data.amountCents as `${bigint}`,
+    amountCents: storedCents(data.amountCents),
     currency: "USD",
     creatorId: data.creatorId,
     payerId: data.payerId,
@@ -27,10 +35,27 @@ export function expenseRecord(expenseId: string, groupId: string, data: Firebase
       const share = s as Record<string, unknown>;
       return {
         participantId: share.participantId as string,
-        amountCents: share.amountCents as `${bigint}`,
+        amountCents: storedCents(share.amountCents, true),
         ...(share.basisPoints === undefined ? {} : {basisPoints: share.basisPoints as number}),
       };
     }),
+  };
+}
+
+function settlementRecord(settlementId: string, groupId: string, data: FirebaseFirestore.DocumentData): Settlement {
+  requireThat(data.schemaVersion === 1, "INTERNAL", "Unsupported settlement version.");
+  return {
+    settlementId,
+    groupId,
+    creatorId: data.creatorId,
+    payerId: data.payerId,
+    payeeId: data.payeeId,
+    amountCents: storedCents(data.amountCents),
+    currency: data.currency,
+    ...(data.note === undefined ? {} : {note: data.note}),
+    localDate: data.localDate,
+    createdAt: time(data.createdAt),
+    updatedAt: time(data.updatedAt),
   };
 }
 
@@ -230,17 +255,14 @@ export async function handleExpenseCall(
     return db.runTransaction(async tx => {
       const group = await authorizedGroup(db, tx, actor.uid, groupId, false);
       const expensesSnap = await tx.get(db.collection(`groups/${groupId}/expenses`));
-      const expensesList: Expense[] = [];
-      expensesSnap.forEach(doc => {
-        if (doc.get("schemaVersion") === 1) {
-          expensesList.push(expenseRecord(doc.id, groupId, doc.data()));
-        }
-      });
-      expensesList.sort((a, b) => {
-        if (a.createdAt.seconds !== b.createdAt.seconds) return a.createdAt.seconds - b.createdAt.seconds;
-        if (a.createdAt.nanoseconds !== b.createdAt.nanoseconds) return a.createdAt.nanoseconds - b.createdAt.nanoseconds;
-        return a.expenseId.localeCompare(b.expenseId);
-      });
+      const settlementsSnap = await tx.get(db.collection(`groups/${groupId}/settlements`));
+      const expensesList = expensesSnap.docs.map(doc => expenseRecord(doc.id, groupId, doc.data()));
+      const settlementsList = settlementsSnap.docs.map(doc => settlementRecord(doc.id, groupId, doc.data()));
+      const compareCreatedAt = (a: Expense | Settlement, b: Expense | Settlement): number =>
+        a.createdAt.seconds - b.createdAt.seconds || a.createdAt.nanoseconds - b.createdAt.nanoseconds;
+      const compareId = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
+      expensesList.sort((a, b) => compareCreatedAt(a, b) || compareId(a.expenseId, b.expenseId));
+      settlementsList.sort((a, b) => compareCreatedAt(a, b) || compareId(a.settlementId, b.settlementId));
       return {
         schemaVersion: 1,
         ledger: {
@@ -248,7 +270,7 @@ export async function handleExpenseCall(
           revision: String(group.get("revision")) as `${bigint}`,
           memberIds: [...group.get("memberIds")].sort(),
           expenses: expensesList,
-          settlements: [],
+          settlements: settlementsList,
         },
       } satisfies LedgerResponse;
     }, {maxAttempts: 5});

@@ -15,7 +15,7 @@
     "emulators": "npm run functions:build && firebase emulators:start --config firebase.local.json --project demo-splitsmart --only auth,firestore,functions",
     "diagnostics:seed": "node scripts/seed-diagnostic.mjs",
     "diagnostics:verify": "node scripts/verify-diagnostic.mjs",
-    "check:emulators": "npm run functions:build && firebase emulators:exec --config firebase.local.json --project demo-splitsmart --only auth,firestore,functions \"npm run diagnostics:seed && npm run diagnostics:verify && node --test functions/test/identity-groups.emulator.test.cjs\"",
+    "check:emulators": "npm run functions:build && firebase emulators:exec --config firebase.local.json --project demo-splitsmart --only auth,firestore,functions \"npm run diagnostics:seed && npm run diagnostics:verify && node --test functions/test/identity-groups.emulator.test.cjs functions/test/balances-ledger.emulator.test.cjs\"",
     "check:android": "npm run functions:build && firebase emulators:exec --config firebase.local.json --project demo-splitsmart --only auth,firestore,functions \"npm run diagnostics:seed && npm run diagnostics:verify && node scripts/android-diagnostic.mjs\""
   },
   "devDependencies": {

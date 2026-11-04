@@ -1,2 +1,2 @@
-/** Future plain Java split and balance calculators. No algorithms implemented in the foundation. */
+/** Plain Java expense splitting and pairwise balance calculators. */
 package edu.usc.splitsmart.domain.calculation;

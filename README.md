@@ -1,13 +1,17 @@
 # SplitSmart — Team 9
 
-Native Android app for Team 9 (Salmon Noodles). User/group management and X01
-password reset are implemented on contract baseline v1. Register, complete a
-partially created profile, sign in/out, view/update your name, request a password
-reset, and create/manage multiple groups. Group owners edit details, add registered
-USC users, and delete groups through resumable backend cleanup.
+Native Android app for Team 9 (Salmon Noodles), on contract baseline v1.
+Implemented features include user/group management, X01 password reset, expense
+creation/editing/deletion with an equal-split UI, and group balances. Exact and
+percentage splitting calculations exist; their input/preview UI remains unfinished.
 
-Expense, split, balance, settlement, history and summary features remain interfaces
-only. X06 email verification and all other optional features are outside this scope.
+Open a group and select **View balances** for your total to pay, total to receive,
+and net balance with each other member. Balances include expenses and existing
+recorded offline settlements, preserve credits after edits/deletions, and refresh
+on reopening or with **Refresh balances**. Debts stay between the original people.
+
+Settlement recording, history/search and monthly summary features remain interfaces
+only. X06 email verification and other optional features remain outside this scope.
 
 Local development uses Firebase emulators under **`demo-splitsmart`**. It needs
 neither a Firebase account nor cloud credentials, `google-services.json`, billing,
@@ -130,7 +134,8 @@ The supplied workflow targets an Android Virtual Device, not a physical phone.
 The local flavor permits cleartext **only** to `10.0.2.2`; cloud forbids cleartext.
 All emulators bind to host loopback.
 
-Seven identity/group callables and cleanupDeletedGroup should be discovered.
+Seven identity/group callables, createExpense/updateExpense/deleteExpense,
+getGroupLedger and cleanupDeletedGroup should be discovered.
 A missing handler or Functions build/load error is a failure. No login is needed for this
 demo project. Ctrl+C stops the suite. Local data is intentionally ephemeral:
 restart and reseed to reset. No user data is imported or exported by default.

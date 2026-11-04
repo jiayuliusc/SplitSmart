@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:minHeight="80dp" android:importantForAccessibility="yes" android:focusable="true">
+    <LinearLayout android:id="@+id/balance_row_content" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="16dp" android:paddingBottom="16dp">
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginEnd="12dp">
+            <TextView android:id="@+id/balance_member_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/balance_ink" android:textSize="16sp" android:textStyle="bold" />
+            <TextView android:id="@+id/balance_direction" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/balance_muted" android:textSize="13sp" android:layout_marginTop="4dp" />
+        </LinearLayout>
+        <TextView android:id="@+id/balance_member_amount" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:gravity="end" android:textColor="@color/balance_ink" android:textSize="20sp" android:textStyle="bold" android:maxLines="1" app:autoSizeTextType="uniform" app:autoSizeMinTextSize="12sp" app:autoSizeMaxTextSize="20sp" app:autoSizeStepGranularity="1sp" />
+    </LinearLayout>
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/balance_line" />
+</LinearLayout>

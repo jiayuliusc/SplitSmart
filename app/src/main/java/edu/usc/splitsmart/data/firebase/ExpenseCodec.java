@@ -8,10 +8,19 @@ import edu.usc.splitsmart.domain.model.*;
 final class ExpenseCodec {
     private ExpenseCodec() { }
 
+    private static long cents(Map<?, ?> data, boolean allowZero) {
+        String text = IdentityCodec.string(data, "amountCents");
+        if (!text.matches("0|[1-9][0-9]*")) throw new IllegalArgumentException("Invalid money");
+        long amount = Long.parseLong(text);
+        if (amount < (allowZero ? 0 : 1) || amount > 9007199254740991L)
+            throw new IllegalArgumentException("Money outside supported range");
+        return amount;
+    }
+
     static ExpenseShare share(Object value) {
         Map<?, ?> data = IdentityCodec.map(value);
         String pId = IdentityCodec.string(data, "participantId");
-        long cents = Long.parseLong(IdentityCodec.string(data, "amountCents"));
+        long cents = cents(data, true);
         Integer bp = data.containsKey("basisPoints") ? (int) IdentityCodec.integer(data.get("basisPoints")) : null;
         return new ExpenseShare(pId, cents, bp);
     }
@@ -21,7 +30,7 @@ final class ExpenseCodec {
         String expenseId = IdentityCodec.string(data, "expenseId");
         String groupId = IdentityCodec.string(data, "groupId");
         String title = IdentityCodec.string(data, "title");
-        long cents = Long.parseLong(IdentityCodec.string(data, "amountCents"));
+        long cents = cents(data, false);
         String currency = IdentityCodec.string(data, "currency");
         String creatorId = IdentityCodec.string(data, "creatorId");
         String payerId = IdentityCodec.string(data, "payerId");
@@ -62,14 +71,28 @@ final class ExpenseCodec {
         long revision = IdentityCodec.revision(IdentityCodec.string(ledgerData, "revision"));
         List<String> memberIds = IdentityCodec.ids(ledgerData.get("memberIds"));
 
-        List<?> rawExpenses = (List<?>) ledgerData.get("expenses");
-        List<Expense> expenses = new ArrayList<>();
-        if (rawExpenses != null) {
-            for (Object e : rawExpenses) {
-                expenses.add(expense(e));
-            }
+        if (!(ledgerData.get("expenses") instanceof List<?> rawExpenses) ||
+                !(ledgerData.get("settlements") instanceof List<?> rawSettlements)) {
+            throw new IllegalArgumentException("Invalid ledger financial arrays");
         }
-        return new LedgerSnapshot(groupId, revision, memberIds, expenses, List.of());
+        List<Expense> expenses = new ArrayList<>();
+        for (Object e : rawExpenses) expenses.add(expense(e));
+        List<Settlement> settlements = new ArrayList<>();
+        for (Object s : rawSettlements) settlements.add(settlement(s));
+        return new LedgerSnapshot(groupId, revision, memberIds, expenses, settlements);
+    }
+
+    static Settlement settlement(Object value) {
+        Map<?, ?> data = IdentityCodec.map(value);
+        Set<String> allowed = Set.of("settlementId", "groupId", "creatorId", "payerId", "payeeId",
+                "amountCents", "currency", "note", "localDate", "createdAt", "updatedAt");
+        if (!allowed.containsAll(data.keySet())) throw new IllegalArgumentException("Unknown settlement field");
+        return new Settlement(IdentityCodec.string(data, "settlementId"), IdentityCodec.string(data, "groupId"),
+                IdentityCodec.string(data, "creatorId"), IdentityCodec.string(data, "payerId"),
+                IdentityCodec.string(data, "payeeId"), cents(data, false),
+                IdentityCodec.string(data, "currency"), IdentityCodec.optional(data, "note"),
+                LocalDate.parse(IdentityCodec.string(data, "localDate")),
+                IdentityCodec.time(data.get("createdAt")), IdentityCodec.time(data.get("updatedAt")));
     }
 
     static Map<String, Object> wireSplitInput(SplitInput input) {
