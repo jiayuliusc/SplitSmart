@@ -13,6 +13,7 @@ import edu.usc.splitsmart.R;
 import edu.usc.splitsmart.domain.model.*;
 import edu.usc.splitsmart.presentation.common.*;
 import edu.usc.splitsmart.presentation.expenses.*;
+import edu.usc.splitsmart.presentation.balances.BalancesScreen;
 import edu.usc.splitsmart.presentation.navigation.NavigationContract;
 
 public final class GroupDetailScreen extends ProtectedScreen {
@@ -38,7 +39,9 @@ public final class GroupDetailScreen extends ProtectedScreen {
         expenseModel = new ViewModelProvider(this, new FeatureFactory(this, getIntent().getExtras(),
             saved -> new ExpenseViewModel(saved, services().expenses(), services().groups(), id))).get(ExpenseViewModel.class);
 
-        bind(model, R.id.groups_refresh, R.id.groups_save, R.id.groups_add, R.id.groups_delete);
+        bind(model, R.id.groups_refresh, R.id.groups_save, R.id.groups_add, R.id.groups_delete, R.id.groups_balances);
+        findViewById(R.id.groups_balances).setOnClickListener(v -> startActivity(new Intent(this, BalancesScreen.class)
+            .putExtra(NavigationContract.GROUP_ID, id)));
         bindDraft(model, R.id.groups_name, "groupName");
         bindDraft(model, R.id.groups_description, "groupDescription");
         model.group.observe(this, group -> {

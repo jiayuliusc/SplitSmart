@@ -2,7 +2,8 @@
 
 This document and [SCHEMA.md](SCHEMA.md) define contract baseline v1. Identity/group
 management and X01 now implement their listed services, repositories, codecs and
-seven callables. Financial feature interfaces remain definitions only. The additive
+seven callables. Expense and balance services implement their v1 interfaces; settlement and history
+services remain definitions only. The additive
 X01 auth method and composition subset below do not change stored or wire schemas.
 See [implementation map](USER_GROUP_IMPLEMENTATION.md) for scope and verification.
 
@@ -83,7 +84,7 @@ expected revision and explicit refresh, not by pretending a snapshot is live.
 The declarations below mirror the compiling sources. `Callback`, `AsyncOperation`,
 `ReadPolicy`, `ReadResult` and `MutationResult` come from `domain.contract`; other
 value types come from `domain.model`. Source files remain authoritative for Java
-syntax. Identity/group methods now have real implementations; other feature methods remain interfaces.
+syntax. Identity/group methods now have real implementations; expense and balance methods also have implementations, while settlement/history remain interfaces.
 
 ```java
 interface AuthRepository {
@@ -470,7 +471,7 @@ local route.
 [`IdentityGroupServices`](../app/src/main/java/edu/usc/splitsmart/config/IdentityGroupServices.java)
 provides auth()/groups() and is implemented by AppContainer with real dependencies.
 FeatureServices extends this subset and retains the other four feature accessors;
-AppContainer does not implement unfinished service getters. FeatureFactory supplies
+AppContainer wires real expense/balance services; unfinished settlement/history getters currently return null. FeatureFactory supplies
 SavedStateHandle and constructor-injected services to ViewModels. Screens never
 fetch Firebase clients. Pending mutation IDs and exact payloads survive configuration
 changes/process recreation through SavedStateHandle. Password fields are not saved.
