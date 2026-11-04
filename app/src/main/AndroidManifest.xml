@@ -38,5 +38,6 @@
         <activity android:name=".presentation.expenses.CreateExpenseScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
         <activity android:name=".presentation.expenses.ExpenseDetailScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
         <activity android:name=".presentation.balances.BalancesScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
+        <activity android:name=".presentation.settlements.SettlementFormScreen" android:exported="false" android:theme="@style/Theme.SplitSmart.Feature" />
     </application>
 </manifest>

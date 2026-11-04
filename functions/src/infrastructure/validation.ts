@@ -66,7 +66,19 @@ export function cents(value: unknown, field = "amountCents"): string {
 
 export function localDate(value: unknown): string {
   requireThat(typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value), "VALIDATION", "Invalid local date.", "localDate");
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const day = Number(value.slice(8, 10));
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  requireThat(year >= 1 && month >= 1 && month <= 12 && day >= 1 && day <= days[month - 1], "VALIDATION", "Invalid local date.", "localDate");
   return value;
+}
+
+export function settlementDraft(value: unknown): {payeeId: string; amountCents: string; note?: string} {
+  const data = object(value, ["payeeId", "amountCents"], ["note"]);
+  return {payeeId: id(data.payeeId, "payeeId"), amountCents: cents(data.amountCents),
+    ...(data.note === undefined ? {} : {note: string(data.note, "note", 1000, true)})};
 }
 
 const CATEGORIES = new Set(["FOOD", "HOUSING", "TRANSPORTATION", "ENTERTAINMENT", "OTHER"]);
@@ -99,6 +111,7 @@ export function expenseDraft(value: unknown): {
   requireThat(Array.isArray(data.participantIds), "VALIDATION", "Participant IDs must be an array.", "participantIds");
   const rawParts = data.participantIds as unknown[];
   const parts = [...new Set(rawParts.map(p => id(p, "participantId")))].sort();
+  requireThat(parts.length === rawParts.length, "VALIDATION", "Participants must be unique.", "participantIds");
   requireThat(parts.length >= 2, "VALIDATION", "At least two participants are required.", "participantIds");
   requireThat(parts.includes(payer), "VALIDATION", "Payer must be included in participants.", "payerId");
   const cat = category(data.category);
@@ -122,6 +135,15 @@ export function expenseDraft(value: unknown): {
       bp = inputObj.basisPoints as number;
     }
     inputs.push({participantId: pId, ...(amt !== undefined ? {amountCents: amt} : {}), ...(bp !== undefined ? {basisPoints: bp} : {})});
+  }
+  if (method === "EQUAL") {
+    requireThat(inputs.length === 0, "VALIDATION", "Equal splits have no inputs.", "splitInputs");
+  } else {
+    requireThat(inputs.length === parts.length && new Set(inputs.map(i => i.participantId)).size === parts.length &&
+      inputs.every(i => parts.includes(i.participantId)), "VALIDATION", "Split inputs must match participants exactly.", "splitInputs");
+    requireThat(inputs.every(i => method === "EXACT" ? i.amountCents !== undefined && i.basisPoints === undefined :
+      i.basisPoints !== undefined && i.amountCents === undefined), "VALIDATION", "Split inputs must match the split method.", "splitInputs");
+    if (method === "EXACT") requireThat(inputs.every(i => BigInt(i.amountCents!) <= 9007199254740991n), "OUT_OF_RANGE", "Split amount is outside supported range.", "splitInputs");
   }
   return {
     title: titleStr,

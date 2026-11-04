@@ -21,4 +21,10 @@
     <color name="balance_receive">#216455</color>
     <color name="balance_owe">#990000</color>
     <color name="balance_line">#E5E2DD</color>
+    <string name="balances_settlements">Recorded payments</string>
+    <string name="balances_add_settlement">Add settlement</string>
+    <string name="balances_settlements_empty">No payments recorded yet.</string>
+    <string name="balances_expenses">Expenses</string>
+    <string name="balances_add_expense">Add expense</string>
+    <string name="balances_expenses_empty">No expenses recorded yet.</string>
 </resources>

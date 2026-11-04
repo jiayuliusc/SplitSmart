@@ -5,7 +5,7 @@ import {getFirestore} from "firebase-admin/firestore";
 import {onCall} from "firebase-functions/v2/https";
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import {actorFromAuth, handle, IdentityGroupCall} from "./identity/handlers";
-import {handleExpenseCall} from "./expenses/handlers";
+import {handleExpenseCall, FinancialCall} from "./expenses/handlers";
 import {httpsError} from "./infrastructure/errors";
 import {finishDeletion} from "./groups/cleanup";
 
@@ -19,7 +19,7 @@ function callable(operation: IdentityGroupCall) {
   });
 }
 
-function expenseCallable(operation: "createExpense" | "updateExpense" | "deleteExpense" | "getGroupLedger") {
+function expenseCallable(operation: FinancialCall) {
   return onCall({region: "us-central1", timeoutSeconds: 60, memory: "512MiB"}, async request => {
     try { return await handleExpenseCall(db, auth, actorFromAuth(request.auth), operation, request.data); }
     catch (error) { throw httpsError(error); }
@@ -37,6 +37,9 @@ export const getGroupMemberProfiles = callable("getGroupMemberProfiles");
 export const createExpense = expenseCallable("createExpense");
 export const updateExpense = expenseCallable("updateExpense");
 export const deleteExpense = expenseCallable("deleteExpense");
+export const createSettlement = expenseCallable("createSettlement");
+export const updateSettlement = expenseCallable("updateSettlement");
+export const deleteSettlement = expenseCallable("deleteSettlement");
 export const getGroupLedger = expenseCallable("getGroupLedger");
 
 export const cleanupDeletedGroup = onDocumentCreated({document: "groupDeletionJobs/{groupId}",
