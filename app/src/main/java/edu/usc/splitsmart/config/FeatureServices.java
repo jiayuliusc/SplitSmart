@@ -6,6 +6,7 @@ import edu.usc.splitsmart.service.*;
 public interface FeatureServices extends IdentityGroupServices {
     ExpenseService expenses();
     BalanceService balances();
+    GroupUpdatesService groupUpdates();
     SettlementService settlements();
     HistoryService history();
 }

@@ -1,6 +1,6 @@
 # Working on SplitSmart
 
-This repository contains contract baseline v1 plus user/group management, X01, expenses and group balances. Read `docs/DESIGN_DECISIONS.md`
+This repository contains contract baseline v1 plus user/group management, X01, expenses, group balances and recorded settlements. Read `docs/DESIGN_DECISIONS.md`
 before implementing a requirement; the supplied catalog's larger foundation
 backlog does not mean those product features exist.
 

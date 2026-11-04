@@ -2,16 +2,18 @@
 
 Native Android app for Team 9 (Salmon Noodles), on contract baseline v1.
 Implemented features include user/group management, X01 password reset, expense
-creation/editing/deletion with an equal-split UI, and group balances. Exact and
+creation/editing/deletion with an equal-split UI, group balances, and recorded
+offline settlement creation/editing/deletion. Exact and
 percentage splitting calculations exist; their input/preview UI remains unfinished.
 
 Open a group and select **View balances** for your total to pay, total to receive,
 and net balance with each other member. Balances include expenses and existing
-recorded offline settlements, preserve credits after edits/deletions, and refresh
-on reopening or with **Refresh balances**. Debts stay between the original people.
+recorded offline settlements and preserve credits after edits/deletions. The open
+page observes group revisions and reloads automatically after financial changes,
+including when returning from a form. **Refresh balances** remains available.
+Debts stay between the original people.
 
-Settlement recording, history/search and monthly summary features remain interfaces
-only. X06 email verification and other optional features remain outside this scope.
+History/search and monthly summary features remain interfaces only. X06 email verification and other optional features remain outside this scope.
 
 Local development uses Firebase emulators under **`demo-splitsmart`**. It needs
 neither a Firebase account nor cloud credentials, `google-services.json`, billing,
@@ -135,7 +137,8 @@ The local flavor permits cleartext **only** to `10.0.2.2`; cloud forbids clearte
 All emulators bind to host loopback.
 
 Seven identity/group callables, createExpense/updateExpense/deleteExpense,
-getGroupLedger and cleanupDeletedGroup should be discovered.
+getGroupLedger, createSettlement/updateSettlement/deleteSettlement and
+cleanupDeletedGroup should be discovered.
 A missing handler or Functions build/load error is a failure. No login is needed for this
 demo project. Ctrl+C stops the suite. Local data is intentionally ephemeral:
 restart and reseed to reset. No user data is imported or exported by default.
@@ -328,3 +331,33 @@ implemented calculator tests. CI runs the Java and TypeScript compatibility chec
 The diagnostic checks one fresh read. The feature suites additionally exercise
 authentication, privacy, contention, receipts and cleanup. See the verification
 record for exact coverage and remaining platform limitations.
+
+## Financial demo
+
+From **View balances**, use **Add settlement** to record an offline payment. Only
+the signed-in payer can create their payment, and only its creator sees the edit
+icon. The form supports saving changes and confirmed deletion. The server rejects
+self-payments, overpayments, stale revisions and unauthorized edits independently
+of the controls. This records a payment already made; it transfers no money.
+
+The same page lists expenses and opens their details. **Edit expense** reuses the
+expense form; creator-only deletion is retained. Exact-split expense edits retain
+their original total/participants/shares; percentage edits retain participants and
+percentages while permitting total changes. Full exact/percentage split-entry UI
+remains separate work. Saving or deleting returns to updated balances with no
+manual refresh. Changes from another foreground client also invalidate the open
+page through the member-authorized group revision listener.
+
+For the offset-debt example, create a group with Alice and Bob. Record $20 paid by
+Bob, $10 paid by Bob, and $8 paid by Alice, each split equally between both members.
+Alice then owes Bob $10 + $5 - $4 = $11. Sign in as Alice, record a $4 settlement to
+Bob and observe $7 remaining. Edit the payment to $6 for $5 remaining; delete it
+for $11 remaining. For separate totals, use a different group: Alice pays $20 for
+Alice/Bob and $10 for Alice/Carol; David pays $8 for Alice/David. Alice receives
+$15 and pays $4. Another group's transactions do not affect these totals.
+
+Settled-expense policy: editing/deleting an expense preserves recorded payments.
+If the debt falls below what was paid, the difference becomes a credit in the
+opposite direction. A payment edit is checked after removing its original value;
+if there is no longer sufficient underlying debt, replacement is rejected and the
+original payment can still be viewed/deleted. No payment is silently rewritten.

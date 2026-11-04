@@ -1,0 +1,26 @@
+<resources>
+    <string name="settlement_create_title">Record payment</string>
+    <string name="settlement_edit_title">Edit payment</string>
+    <string name="settlement_intro">Record a payment you already made. No money is transferred.</string>
+    <string name="settlement_payer">Paid by %1$s</string>
+    <string name="settlement_payee">Paid to</string>
+    <string name="settlement_amount">Amount (USD)</string>
+    <string name="settlement_note">Note (optional)</string>
+    <string name="settlement_remaining">You can record up to $%1$s</string>
+    <string name="settlement_save">Save payment</string>
+    <string name="settlement_delete">Delete payment</string>
+    <string name="settlement_delete_title">Delete this payment?</string>
+    <string name="settlement_delete_message">The recorded payment will be removed and balances will update.</string>
+    <string name="settlement_cancel">Cancel</string>
+    <string name="settlement_edit_description">Edit recorded payment</string>
+    <string name="settlement_invalid_amount">Enter a positive dollar amount with up to two decimal places.</string>
+    <string name="settlement_invalid_payee">Choose another group member.</string>
+    <string name="settlement_overpayment">This amount exceeds your remaining debt to this member.</string>
+    <string name="settlement_invalid_note">Keep the note to 1,000 characters or fewer.</string>
+    <string name="settlement_conflict">Balances changed. Review the updated limit and save again.</string>
+    <string name="settlement_unavailable">This payment is unavailable. Refresh and try again.</string>
+    <string name="settlement_access_error">You no longer have access to this payment.</string>
+    <string name="settlement_retry_error">The result could not be confirmed. Retry to check the same payment.</string>
+    <string name="settlement_error">Unable to complete this action. Please try again.</string>
+    <string name="settlement_row_names">%1$s → %2$s</string>
+</resources>

@@ -2,7 +2,6 @@ package edu.usc.splitsmart.data.firebase;
 
 import java.time.LocalDate;
 import java.util.*;
-import com.google.firebase.firestore.Source;
 import edu.usc.splitsmart.data.repository.*;
 import edu.usc.splitsmart.domain.contract.*;
 import edu.usc.splitsmart.domain.model.*;
@@ -17,23 +16,18 @@ public final class FirebaseExpenseRepository implements ExpenseRepository, Ledge
 
     @Override
     public AsyncOperation getExpense(String groupId, String expenseId, ReadPolicy policy, Callback<ReadResult<Expense>> callback) {
-        PendingOperation<ReadResult<Expense>> op = context.operation(callback);
-        if (context.scope.uid() == null || context.cached("expense:" + groupId + ":" + expenseId, policy, op)) return op;
-        Callback<ReadResult<Expense>> result = context.cache("expense:" + groupId + ":" + expenseId, op);
-        context.db.collection("groups").document(groupId).collection("expenses").document(expenseId).get(Source.SERVER).addOnCompleteListener(task -> {
-            if (!task.isSuccessful()) {
-                result.onError(FirebaseErrors.map(task.getException()));
-            } else if (!task.getResult().exists()) {
-                result.onError(FirebaseErrors.error(ErrorCode.NOT_FOUND, "This expense no longer exists."));
-            } else {
-                try {
-                    result.onSuccess(new ReadResult<>(ExpenseCodec.expense(task.getResult(), groupId), ReadSource.SERVER));
-                } catch (RuntimeException invalid) {
-                    result.onError(FirebaseErrors.error(ErrorCode.INTERNAL, "Unsupported expense data."));
+        return getLedger(groupId, policy, new Callback<>() {
+            @Override public void onSuccess(ReadResult<LedgerSnapshot> result) {
+                for (Expense expense : result.value().expenses()) {
+                    if (expense.expenseId().equals(expenseId)) {
+                        callback.onSuccess(new ReadResult<>(expense, result.source()));
+                        return;
+                    }
                 }
+                callback.onError(FirebaseErrors.error(ErrorCode.NOT_FOUND, "This expense no longer exists."));
             }
+            @Override public void onError(AppError error) { callback.onError(error); }
         });
-        return op;
     }
 
     @Override

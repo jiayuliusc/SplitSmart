@@ -13,7 +13,7 @@ public final class ExpenseViewModel extends FeatureViewModel {
     private final ExpenseService expenses;
     private final GroupService groups;
     private final String groupId;
-
+    private String selectedExpenseId;
     public final MutableLiveData<Group> group = new MutableLiveData<>();
     public final MutableLiveData<List<MemberProfile>> members = new MutableLiveData<>(List.of());
     public final MutableLiveData<LedgerSnapshot> ledger = new MutableLiveData<>();
@@ -31,109 +31,134 @@ public final class ExpenseViewModel extends FeatureViewModel {
     public void loadGroup() {
         if (isBusy()) return;
         start();
-        track(groups.getGroup(groupId, ReadPolicy.FRESH, new Callback<>() {
-            @Override public void onSuccess(ReadResult<Group> val) {
-                group.setValue(val.value());
+        track(expenses.getLedger(groupId, ReadPolicy.FRESH, new Callback<>() {
+            @Override public void onSuccess(ReadResult<LedgerSnapshot> result) {
+                ledger.setValue(result.value());
                 track(groups.getMemberProfiles(groupId, ReadPolicy.FRESH, new Callback<>() {
-                    @Override public void onSuccess(ReadResult<List<MemberProfile>> result) {
-                        members.setValue(result.value());
-                        track(expenses.getLedger(groupId, ReadPolicy.FRESH, new Callback<>() {
-                            @Override public void onSuccess(ReadResult<LedgerSnapshot> ledgerRes) {
-                                ledger.setValue(ledgerRes.value());
-                                busy.setValue(false);
+                    @Override public void onSuccess(ReadResult<List<MemberProfile>> profiles) {
+                        members.setValue(profiles.value());
+                        if (selectedExpenseId != null) {
+                            Expense found = null;
+                            for (Expense candidate : result.value().expenses()) {
+                                if (candidate.expenseId().equals(selectedExpenseId)) { found = candidate; break; }
                             }
-                            @Override public void onError(AppError e) { failed(e); }
-                        }));
+                            expense.setValue(found);
+                            if (found == null) {
+                                failed(new AppError(ErrorCode.NOT_FOUND, "This expense no longer exists.", null, false));
+                                return;
+                            }
+                        }
+                        busy.setValue(false);
                     }
-                    @Override public void onError(AppError e) { failed(e); }
+                    @Override public void onError(AppError error) { readFailed(error); }
                 }));
             }
-            @Override public void onError(AppError e) { group.setValue(null); members.setValue(List.of()); failed(e); }
+            @Override public void onError(AppError error) { readFailed(error); }
         }));
     }
-
-    public void refreshLedger() {
+    private void readFailed(AppError error) {
+        ledger.setValue(null); members.setValue(List.of()); expense.setValue(null);
+        // A read cannot establish the outcome of an earlier ambiguous write.
+        if (pending()) { message.setValue(""); this.error.setValue(error); busy.setValue(false); }
+        else failed(error);
+    }
+    public void refreshLedger() { loadGroup(); }
+    public void loadExpense(String expenseId) {
+        selectedExpenseId = expenseId;
         loadGroup();
     }
-
-    public void loadExpense(String expenseId) {
-        if (isBusy()) return;
-        start();
-        track(expenses.getExpense(groupId, expenseId, ReadPolicy.FRESH, new Callback<>() {
-            @Override public void onSuccess(ReadResult<Expense> result) {
-                expense.setValue(result.value());
-                busy.setValue(false);
-            }
-            @Override public void onError(AppError e) { failed(e); }
-        }));
-    }
-
-    private void updateGroupRevision(Long rev) {
-        if (rev != null && group.getValue() != null) {
-            Group g = group.getValue();
-            group.setValue(new Group(g.groupId(), g.name(), g.description(), g.ownerId(), g.memberIds(), rev, g.status(), g.createdAt(), g.updatedAt()));
-        }
-    }
-
-    public static long parseDollarsToCents(String input) throws IllegalArgumentException {
+    public static long parseDollarsToCents(String input) {
         if (input == null || input.trim().isEmpty()) return 0L;
-        BigDecimal bd = new BigDecimal(input.trim());
-        if (bd.scale() > 2) throw new IllegalArgumentException("Maximum 2 decimal places.");
-        BigDecimal centsBd = bd.movePointRight(2);
-        return centsBd.longValueExact();
+        BigDecimal value = new BigDecimal(input.trim());
+        if (value.scale() > 2) throw new IllegalArgumentException("Maximum 2 decimal places.");
+        return value.movePointRight(2).longValueExact();
     }
-
-    public void create(String title, String amountStr, String payerId, List<String> participantIds, Category category, String note) {
-        if (isBusy() || pending() || group.getValue() == null) return;
-        long amountCents;
-        try {
-            amountCents = parseDollarsToCents(amountStr);
-        } catch (Exception e) {
-            failed(new AppError(ErrorCode.VALIDATION, "Enter a valid dollar amount (e.g. 25.50).", "amountCents", false));
+    public void create(String title, String amount, String payerId, List<String> participantIds, Category category, String note) {
+        submit(null, title, amount, payerId, participantIds, category, note);
+    }
+    public void update(String expenseId, String title, String amount, String payerId, List<String> participantIds, Category category, String note) {
+        submit(expenseId, title, amount, payerId, participantIds, category, note);
+    }
+    private void submit(String expenseId, String title, String amount, String payerId, List<String> participantIds, Category category, String note) {
+        if (isBusy() || pending() || ledger.getValue() == null) return;
+        long cents;
+        try { cents = parseDollarsToCents(amount); }
+        catch (RuntimeException invalid) {
+            failed(new AppError(ErrorCode.VALIDATION, "Enter a valid dollar amount (e.g. 25.50).", "amountCents", false)); return;
+        }
+        ExpenseDraft original = originalDraft();
+        SplitMethod method = expenseId != null && original != null ? original.splitMethod() : SplitMethod.EQUAL;
+        if (method != SplitMethod.EQUAL && (!participantIds.equals(original.participantIds())
+                || (method == SplitMethod.EXACT && cents != original.amountCents()))) {
+            failed(new AppError(ErrorCode.VALIDATION, "Keep the original exact amounts and split participants for this expense.", null, false)); return;
+        }
+        ExpenseDraft draft = new ExpenseDraft(title.trim(), cents, payerId, participantIds, method, category,
+            note == null || note.trim().isEmpty() ? null : note.trim(), method == SplitMethod.EQUAL ? List.of() : original.splitInputs());
+        ExpenseIntent mutation = new ExpenseIntent(expenseId == null ? "create" : "update", ledger.getValue().revision(),
+            expenseId, expenseId == null ? LocalDate.now() : null, draft);
+        String key = intent(mutation.operation(), mutation.save().toArray(new String[0]));
+        replay(mutation, key);
+    }
+    /** Initial values are saved only once; fresh reads after a conflict never overwrite the draft. */
+    public void initializeEditor(Expense expense) {
+        if (saved.contains("draft:initialized")) return;
+        ExpenseDraft draft = ExpenseIntent.draftFrom(expense);
+        saved.set("draft:original", new ExpenseIntent("update", 0, expense.expenseId(), null, draft).save());
+        editDraft("title", draft.title());
+        editDraft("amount", BigDecimal.valueOf(draft.amountCents(), 2).toPlainString());
+        editDraft("payer", draft.payerId());
+        editDraft("participants", String.join(",", draft.participantIds()));
+        editDraft("category", draft.category().name());
+        editDraft("note", draft.note() == null ? "" : draft.note());
+        editDraft("initialized", "true");
+    }
+    public ExpenseDraft originalDraft() {
+        ArrayList<String> fields = saved.get("draft:original");
+        return fields == null ? null : ExpenseIntent.restore(fields).draft();
+    }
+    public void delete(String expenseId) {
+        if (isBusy() || pending() || ledger.getValue() == null) return;
+        ExpenseIntent mutation = new ExpenseIntent("delete", ledger.getValue().revision(), expenseId, null, null);
+        String key = intent("delete", mutation.save().toArray(new String[0]));
+        replay(mutation, key);
+    }
+    private void replay(ExpenseIntent mutation, String requestId) {
+        start();
+        if ("delete".equals(mutation.operation())) {
+            track(expenses.deleteExpense(groupId, mutation.revision(), mutation.expenseId(), requestId, new Callback<>() {
+                @Override public void onSuccess(MutationResult<DeletedRecord> result) { done("Expense deleted."); deleted.setValue(result); }
+                @Override public void onError(AppError error) { mutationFailed(error); }
+            }));
             return;
         }
-        String noteVal = note != null && !note.trim().isEmpty() ? note.trim() : null;
-        ExpenseDraft draft = new ExpenseDraft(title, amountCents, payerId, participantIds, SplitMethod.EQUAL, category, noteVal, List.of());
-        String key = intent("create", Long.toString(group.getValue().revision()), title);
-        retryCreate(draft, key);
-    }
-
-    private void retryCreate(ExpenseDraft draft, String key) {
-        start();
-        LocalDate now = LocalDate.now();
-        track(expenses.createExpense(groupId, group.getValue().revision(), draft, now, key, new Callback<>() {
-            @Override public void onSuccess(MutationResult<Expense> result) {
-                updateGroupRevision(result.groupRevision());
-                done("Expense recorded successfully.");
-                created.setValue(result);
+        Callback<MutationResult<Expense>> callback = new Callback<>() {
+            @Override public void onSuccess(MutationResult<Expense> result) { done("Expense saved."); created.setValue(result); }
+            @Override public void onError(AppError error) { mutationFailed(error); }
+        };
+        // Validate and preview the exact same split payload that will be written.
+        track(expenses.previewSplit(mutation.draft(), new Callback<>() {
+            @Override public void onSuccess(List<ExpenseShare> shares) {
+                track("create".equals(mutation.operation())
+                    ? expenses.createExpense(groupId, mutation.revision(), mutation.draft(), mutation.date(), requestId, callback)
+                    : expenses.updateExpense(groupId, mutation.revision(), mutation.expenseId(), mutation.draft(), requestId, callback));
             }
-            @Override public void onError(AppError e) { failed(e); }
+            @Override public void onError(AppError error) { mutationFailed(error); }
         }));
     }
-
-    public void delete(String expenseId) {
-        if (isBusy() || pending() || group.getValue() == null) return;
-        String key = intent("delete", Long.toString(group.getValue().revision()), expenseId);
-        retryDelete(expenseId, key);
-    }
-
-    private void retryDelete(String expenseId, String key) {
-        start();
-        long rev = Long.parseLong(values().get(0));
-        track(expenses.deleteExpense(groupId, rev, expenseId, key, new Callback<>() {
-            @Override public void onSuccess(MutationResult<DeletedRecord> result) {
-                updateGroupRevision(result.groupRevision());
-                done("Expense deleted.");
-                deleted.setValue(result);
-            }
-            @Override public void onError(AppError e) { failed(e); }
-        }));
-    }
-
-    public void retry() {
-        if (!pending() || isBusy()) return;
-        if ("delete".equals(operation())) {
-            retryDelete(values().get(1), requestId());
+    private void mutationFailed(AppError error) {
+        failed(error);
+        if (error.code() == ErrorCode.CONFLICT) {
+            resolved();
+            loadGroup();
+            message.setValue("The group changed. Your draft is preserved. Review it and submit again.");
         }
+    }
+    public void retry() {
+        if (isBusy()) return;
+        if (pending()) replay(ExpenseIntent.restore(values()), requestId());
+        else loadGroup();
+    }
+    @Override public void cancelOperations() {
+        super.cancelOperations(); ledger.setValue(null); expense.setValue(null); members.setValue(List.of());
     }
 }
