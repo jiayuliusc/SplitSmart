@@ -40,6 +40,7 @@ public final class GroupDetailScreen extends ProtectedScreen {
             saved -> new ExpenseViewModel(saved, services().expenses(), services().groups(), id))).get(ExpenseViewModel.class);
 
         bind(model, R.id.groups_refresh, R.id.groups_save, R.id.groups_add, R.id.groups_delete, R.id.groups_balances);
+        bindErrors(expenseModel);
         findViewById(R.id.groups_balances).setOnClickListener(v -> startActivity(new Intent(this, BalancesScreen.class)
             .putExtra(NavigationContract.GROUP_ID, id)));
         bindDraft(model, R.id.groups_name, "groupName");

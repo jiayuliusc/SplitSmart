@@ -18,10 +18,15 @@ import edu.usc.splitsmart.presentation.identity.LoginScreen;
 
 public abstract class FeatureScreen extends AppCompatActivity {
     private final Set<Integer> rendering = new HashSet<>();
+    private ErrorBanner errorBanner;
     protected FeatureServices services() { return ((SplitSmartApplication) getApplication()).getContainer(); }
     protected void screen(int layout) {
-        EdgeToEdge.enable(this); setContentView(layout);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.feature_root), (view, insets) -> {
+        EdgeToEdge.enable(this);
+        FrameLayout host = new FrameLayout(this);
+        getLayoutInflater().inflate(layout, host, true);
+        errorBanner = new ErrorBanner(host);
+        setContentView(host);
+        ViewCompat.setOnApplyWindowInsetsListener(host, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.ime());
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom); return insets;
         });
@@ -47,6 +52,7 @@ public abstract class FeatureScreen extends AppCompatActivity {
     }
     protected void show(int id, boolean visible) { findViewById(id).setVisibility(visible ? View.VISIBLE : View.GONE); }
     protected void bind(FeatureViewModel model, int... buttons) {
+        bindErrors(model);
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
                 if (model.isBusy() || model.pending()) {
@@ -62,6 +68,19 @@ public abstract class FeatureScreen extends AppCompatActivity {
             View retry = findViewById(R.id.identity_retry);
             if (retry != null) { retry.setVisibility(model.pending() ? View.VISIBLE : View.GONE); retry.setEnabled(!Boolean.TRUE.equals(busy)); }
         });
+    }
+    protected void bindErrors(FeatureViewModel model) {
+        model.error.observe(this, failure -> {
+            if (failure == null) return;
+            showError(failure.message());
+            // Treat errors as events so rotation does not replay an expired banner.
+            model.error.setValue(null);
+        });
+    }
+    protected void showError(String message) { errorBanner.show(message); }
+    @Override protected void onStop() {
+        if (errorBanner != null) errorBanner.clear();
+        super.onStop();
     }
     private void lockInputs(ViewGroup group, boolean locked) {
         for (int i = 0; i < group.getChildCount(); i++) {
