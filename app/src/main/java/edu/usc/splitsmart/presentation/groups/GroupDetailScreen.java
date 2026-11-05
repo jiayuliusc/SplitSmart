@@ -16,6 +16,7 @@ import edu.usc.splitsmart.presentation.expenses.*;
 import edu.usc.splitsmart.presentation.balances.BalancesScreen;
 import edu.usc.splitsmart.presentation.history.HistorySection;
 import edu.usc.splitsmart.presentation.history.HistoryViewModel;
+import edu.usc.splitsmart.presentation.history.MonthlySummaryScreen;
 import edu.usc.splitsmart.presentation.navigation.NavigationContract;
 
 public final class GroupDetailScreen extends ProtectedScreen {
@@ -53,6 +54,8 @@ public final class GroupDetailScreen extends ProtectedScreen {
         bind(model, R.id.groups_refresh, R.id.groups_save, R.id.groups_add, R.id.groups_delete, R.id.groups_balances);
         bindErrors(expenseModel);
         findViewById(R.id.groups_balances).setOnClickListener(v -> startActivity(new Intent(this, BalancesScreen.class)
+            .putExtra(NavigationContract.GROUP_ID, id)));
+        findViewById(R.id.groups_summary).setOnClickListener(v -> startActivity(new Intent(this, MonthlySummaryScreen.class)
             .putExtra(NavigationContract.GROUP_ID, id)));
         bindDraft(model, R.id.groups_name, "groupName");
         bindDraft(model, R.id.groups_description, "groupDescription");

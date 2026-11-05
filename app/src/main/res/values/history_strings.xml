@@ -27,4 +27,16 @@
     <string name="history_row_expense">Expense · %1$s</string>
     <string name="history_row_settlement">Settlement</string>
     <string name="history_row_detail">%1$s · %2$s</string>
+
+    <!-- Monthly summary -->
+    <string name="summary_open">Monthly summary</string>
+    <string name="summary_title">Monthly summary</string>
+    <string name="summary_intro">Expenses recorded in the selected month.</string>
+    <string name="summary_previous">Previous</string>
+    <string name="summary_next">Next</string>
+    <string name="summary_count_label">Number of expenses</string>
+    <string name="summary_total_label">Total group spending</string>
+    <string name="summary_by_category">Spending by category</string>
+    <string name="summary_empty">No expenses this month.</string>
+    <string name="summary_note">Settlements are not included in the monthly summary.</string>
 </resources>
