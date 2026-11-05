@@ -20,6 +20,10 @@ public final class ExpenseViewModel extends FeatureViewModel {
     public final MutableLiveData<Expense> expense = new MutableLiveData<>();
     public final MutableLiveData<MutationResult<Expense>> created = new MutableLiveData<>();
     public final MutableLiveData<MutationResult<DeletedRecord>> deleted = new MutableLiveData<>();
+    public final MutableLiveData<List<ExpenseShare>> splitPreview = new MutableLiveData<>(List.of());
+    public final MutableLiveData<String> splitValidation = new MutableLiveData<>("");
+    public final MutableLiveData<Boolean> splitValid = new MutableLiveData<>(false);
+    private int previewGeneration;
 
     public ExpenseViewModel(SavedStateHandle state, ExpenseService expenses, GroupService groups, String groupId) {
         super(state);
@@ -73,8 +77,48 @@ public final class ExpenseViewModel extends FeatureViewModel {
         if (value.scale() > 2) throw new IllegalArgumentException("Maximum 2 decimal places.");
         return value.movePointRight(2).longValueExact();
     }
+    public static int parsePercentageToBasisPoints(String input) {
+        if (input == null || input.trim().isEmpty()) throw new IllegalArgumentException("Enter a percentage.");
+        BigDecimal value = new BigDecimal(input.trim());
+        if (value.scale() > 2) throw new IllegalArgumentException("Maximum 2 decimal places.");
+        return value.movePointRight(2).intValueExact();
+    }
+    public void clearSplitPreview(String message) {
+        ++previewGeneration; splitPreview.setValue(List.of());
+        splitValidation.setValue(message == null ? "" : message); splitValid.setValue(false);
+    }
+    public void previewSplit(String title, String amount, String payerId, List<String> participantIds,
+                             SplitMethod method, List<SplitInput> inputs, Category category, String note) {
+        int request = ++previewGeneration;
+        ExpenseDraft draft;
+        try { draft = draft(title, amount, payerId, participantIds, method, inputs, category, note); }
+        catch (RuntimeException error) { clearSplitPreview(error.getMessage()); return; }
+        splitValid.setValue(false); splitValidation.setValue("");
+        track(expenses.previewSplit(draft, new Callback<>() {
+            @Override public void onSuccess(List<ExpenseShare> shares) {
+                if (request != previewGeneration) return;
+                splitPreview.setValue(shares); splitValidation.setValue(""); splitValid.setValue(true);
+            }
+            @Override public void onError(AppError error) {
+                if (request != previewGeneration) return;
+                splitPreview.setValue(List.of()); splitValidation.setValue(error.message()); splitValid.setValue(false);
+            }
+        }));
+    }
     public void create(String title, String amount, String payerId, List<String> participantIds, Category category, String note) {
         submit(null, title, amount, payerId, participantIds, category, note);
+    }
+    public void create(String title, String amount, String payerId, List<String> participantIds,
+                       SplitMethod method, List<SplitInput> inputs, Category category, String note) {
+        if (isBusy() || pending() || ledger.getValue() == null) return;
+        ExpenseDraft draft;
+        try { draft = draft(title, amount, payerId, participantIds, method, inputs, category, note); }
+        catch (RuntimeException invalid) {
+            failed(new AppError(ErrorCode.VALIDATION, invalid.getMessage(), "splitInputs", false)); return;
+        }
+        ExpenseIntent mutation = new ExpenseIntent("create", ledger.getValue().revision(), null, LocalDate.now(), draft);
+        String key = intent(mutation.operation(), mutation.save().toArray(new String[0]));
+        replay(mutation, key);
     }
     public void update(String expenseId, String title, String amount, String payerId, List<String> participantIds, Category category, String note) {
         submit(expenseId, title, amount, payerId, participantIds, category, note);
@@ -89,7 +133,7 @@ public final class ExpenseViewModel extends FeatureViewModel {
         ExpenseDraft original = originalDraft();
         SplitMethod method = expenseId != null && original != null ? original.splitMethod() : SplitMethod.EQUAL;
         if (method != SplitMethod.EQUAL && (!participantIds.equals(original.participantIds())
-                || (method == SplitMethod.EXACT && cents != original.amountCents()))) {
+            || (method == SplitMethod.EXACT && cents != original.amountCents()))) {
             failed(new AppError(ErrorCode.VALIDATION, "Keep the original exact amounts and split participants for this expense.", null, false)); return;
         }
         ExpenseDraft draft = new ExpenseDraft(title.trim(), cents, payerId, participantIds, method, category,
@@ -98,6 +142,18 @@ public final class ExpenseViewModel extends FeatureViewModel {
             expenseId, expenseId == null ? LocalDate.now() : null, draft);
         String key = intent(mutation.operation(), mutation.save().toArray(new String[0]));
         replay(mutation, key);
+    }
+    private static ExpenseDraft draft(String title, String amount, String payerId,
+                                      List<String> participants, SplitMethod method, List<SplitInput> inputs,
+                                      Category category, String note) {
+        if (payerId == null || participants == null || method == null || inputs == null || category == null) {
+            throw new IllegalArgumentException("Complete the payer, participants, split method, and category.");
+        }
+        long cents;
+        try { cents = parseDollarsToCents(amount); }
+        catch (RuntimeException invalid) { throw new IllegalArgumentException("Enter a valid dollar amount (e.g. 25.50)."); }
+        return new ExpenseDraft(title == null ? "" : title.trim(), cents, payerId, participants, method, category,
+            note == null || note.trim().isEmpty() ? null : note.trim(), inputs);
     }
     /** Initial values are saved only once; fresh reads after a conflict never overwrite the draft. */
     public void initializeEditor(Expense expense) {
@@ -110,6 +166,13 @@ public final class ExpenseViewModel extends FeatureViewModel {
         editDraft("participants", String.join(",", draft.participantIds()));
         editDraft("category", draft.category().name());
         editDraft("note", draft.note() == null ? "" : draft.note());
+        editDraft("splitMethod", draft.splitMethod().name());
+        for (SplitInput input : draft.splitInputs()) {
+            if (input.amountCents() != null) editDraft("split:EXACT:" + input.participantId(),
+                BigDecimal.valueOf(input.amountCents(), 2).toPlainString());
+            if (input.basisPoints() != null) editDraft("split:PERCENTAGE:" + input.participantId(),
+                BigDecimal.valueOf(input.basisPoints(), 2).stripTrailingZeros().toPlainString());
+        }
         editDraft("initialized", "true");
     }
     public ExpenseDraft originalDraft() {
@@ -159,6 +222,6 @@ public final class ExpenseViewModel extends FeatureViewModel {
         else loadGroup();
     }
     @Override public void cancelOperations() {
-        super.cancelOperations(); ledger.setValue(null); expense.setValue(null); members.setValue(List.of());
+        ++previewGeneration; super.cancelOperations(); ledger.setValue(null); expense.setValue(null); members.setValue(List.of());
     }
 }

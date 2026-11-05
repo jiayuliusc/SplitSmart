@@ -73,4 +73,20 @@
     <string name="expenses_delete_title">Delete this expense?</string>
     <string name="expenses_delete_message">This permanently deletes this expense record.</string>
     <string name="expenses_shares_title">Shares</string>
+    <string name="split_method">Split method</string>
+    <string name="split_equal">Equal split</string>
+    <string name="split_exact">Exact amounts</string>
+    <string name="split_percentage">Percentages</string>
+    <string name="split_values">Participant values</string>
+    <string name="split_preview">Split preview</string>
+    <string name="split_amount_hint">Amount ($)</string>
+    <string name="split_percentage_hint">Percent (%)</string>
+    <string name="split_enter_all_amounts">Enter an exact amount for every selected participant.</string>
+    <string name="split_enter_all_percentages">Enter a percentage for every selected participant.</string>
+    <string name="split_invalid_amount">Enter valid amounts with no more than two decimal places.</string>
+    <string name="split_invalid_percentage">Enter percentages from 0 to 100 with no more than two decimal places.</string>
+    <string name="split_input_content_description">%1$s, %2$s</string>
+    <string name="split_currency_amount">$%1$s</string>
+    <string name="split_percentage_suffix"> (%1$s%%)</string>
+    <string name="split_preview_row">%1$s: %2$s%3$s</string>
 </resources>
