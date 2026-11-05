@@ -43,6 +43,7 @@ public final class ExpenseDetailScreen extends ProtectedScreen {
 
             boolean isCreator = currentUid != null && currentUid.equals(exp.creatorId());
             show(R.id.expense_delete, isCreator);
+            show(R.id.expense_edit, isCreator);
 
             // Match member names for payer and shares
             List<MemberProfile> mems = model.members.getValue();
@@ -74,6 +75,13 @@ public final class ExpenseDetailScreen extends ProtectedScreen {
                     sharesContainer.addView(tv);
                 }
             }
+        });
+
+        findViewById(R.id.expense_edit).setOnClickListener(v -> {
+            Intent editIntent = new Intent(this, CreateExpenseScreen.class);
+            editIntent.putExtra(NavigationContract.GROUP_ID, groupId);
+            editIntent.putExtra(NavigationContract.EXPENSE_ID, expenseId);
+            startActivity(editIntent);
         });
 
         findViewById(R.id.expense_delete).setOnClickListener(v -> new MaterialAlertDialogBuilder(this)

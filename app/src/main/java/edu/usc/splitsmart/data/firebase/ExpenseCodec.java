@@ -91,7 +91,8 @@ final class ExpenseCodec {
         map.put("payerId", draft.payerId());
         map.put("participantIds", draft.participantIds());
         map.put("splitMethod", draft.splitMethod().name());
-        map.put("category", draft.category().name());
+        Category cat = draft.category() != null ? draft.category() : Category.OTHER;
+        map.put("category", cat.name());
         if (draft.note() != null) {
             map.put("note", draft.note());
         }

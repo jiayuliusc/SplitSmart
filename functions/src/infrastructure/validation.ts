@@ -6,7 +6,7 @@ export function object(value: unknown, required: string[], optional: string[] = 
   const data = value as Record<string, unknown>;
   requireThat(required.every(k => Object.hasOwn(data, k)) &&
     Object.keys(data).every(k => required.includes(k) || optional.includes(k)), "VALIDATION", "Unexpected or missing fields.");
-  requireThat(Object.values(data).every(v => v !== null && v !== undefined), "VALIDATION", "Omit optional values instead of null.");
+  requireThat(Object.entries(data).every(([k, v]) => k === "category" ? true : (v !== null && v !== undefined)), "VALIDATION", "Omit optional values instead of null.");
   return data;
 }
 
@@ -73,6 +73,9 @@ const CATEGORIES = new Set(["FOOD", "HOUSING", "TRANSPORTATION", "ENTERTAINMENT"
 const SPLIT_METHODS = new Set(["EQUAL", "EXACT", "PERCENTAGE"]);
 
 export function category(value: unknown): "FOOD" | "HOUSING" | "TRANSPORTATION" | "ENTERTAINMENT" | "OTHER" {
+  if (value === undefined || value === null || value === "") {
+    return "OTHER";
+  }
   requireThat(typeof value === "string" && CATEGORIES.has(value), "VALIDATION", "Invalid category.", "category");
   return value as "FOOD" | "HOUSING" | "TRANSPORTATION" | "ENTERTAINMENT" | "OTHER";
 }
@@ -92,7 +95,7 @@ export function expenseDraft(value: unknown): {
   note?: string;
   splitInputs: Array<{participantId: string; amountCents?: string; basisPoints?: number}>;
 } {
-  const data = object(value, ["title", "amountCents", "payerId", "participantIds", "splitMethod", "category", "splitInputs"], ["note"]);
+  const data = object(value, ["title", "amountCents", "payerId", "participantIds", "splitMethod", "splitInputs"], ["category", "note"]);
   const titleStr = string(data.title, "title").trim();
   const amountStr = cents(data.amountCents, "amountCents");
   const payer = id(data.payerId, "payerId");

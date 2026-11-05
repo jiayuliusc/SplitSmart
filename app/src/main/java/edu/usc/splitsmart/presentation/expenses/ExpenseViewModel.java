@@ -19,6 +19,7 @@ public final class ExpenseViewModel extends FeatureViewModel {
     public final MutableLiveData<LedgerSnapshot> ledger = new MutableLiveData<>();
     public final MutableLiveData<Expense> expense = new MutableLiveData<>();
     public final MutableLiveData<MutationResult<Expense>> created = new MutableLiveData<>();
+    public final MutableLiveData<MutationResult<Expense>> updated = new MutableLiveData<>();
     public final MutableLiveData<MutationResult<DeletedRecord>> deleted = new MutableLiveData<>();
 
     public ExpenseViewModel(SavedStateHandle state, ExpenseService expenses, GroupService groups, String groupId) {
@@ -92,8 +93,13 @@ public final class ExpenseViewModel extends FeatureViewModel {
             failed(new AppError(ErrorCode.VALIDATION, "Enter a valid dollar amount (e.g. 25.50).", "amountCents", false));
             return;
         }
+        Category catVal = category != null ? category : Category.OTHER;
         String noteVal = note != null && !note.trim().isEmpty() ? note.trim() : null;
-        ExpenseDraft draft = new ExpenseDraft(title, amountCents, payerId, participantIds, SplitMethod.EQUAL, category, noteVal, List.of());
+        List<String> participants = new ArrayList<>(participantIds != null ? participantIds : List.of());
+        if (payerId != null && !payerId.trim().isEmpty() && !participants.contains(payerId)) {
+            participants.add(payerId);
+        }
+        ExpenseDraft draft = new ExpenseDraft(title, amountCents, payerId, participants, SplitMethod.EQUAL, catVal, noteVal, List.of());
         String key = intent("create", Long.toString(group.getValue().revision()), title);
         retryCreate(draft, key);
     }
@@ -106,6 +112,38 @@ public final class ExpenseViewModel extends FeatureViewModel {
                 updateGroupRevision(result.groupRevision());
                 done("Expense recorded successfully.");
                 created.setValue(result);
+            }
+            @Override public void onError(AppError e) { failed(e); }
+        }));
+    }
+
+    public void update(String expenseId, String title, String amountStr, String payerId, List<String> participantIds, Category category, String note) {
+        if (isBusy() || pending() || group.getValue() == null || expenseId == null) return;
+        long amountCents;
+        try {
+            amountCents = parseDollarsToCents(amountStr);
+        } catch (Exception e) {
+            failed(new AppError(ErrorCode.VALIDATION, "Enter a valid dollar amount (e.g. 25.50).", "amountCents", false));
+            return;
+        }
+        Category catVal = category != null ? category : Category.OTHER;
+        String noteVal = note != null && !note.trim().isEmpty() ? note.trim() : null;
+        List<String> participants = new ArrayList<>(participantIds != null ? participantIds : List.of());
+        if (payerId != null && !payerId.trim().isEmpty() && !participants.contains(payerId)) {
+            participants.add(payerId);
+        }
+        ExpenseDraft draft = new ExpenseDraft(title, amountCents, payerId, participants, SplitMethod.EQUAL, catVal, noteVal, List.of());
+        String key = intent("update", Long.toString(group.getValue().revision()), expenseId);
+        retryUpdate(expenseId, draft, key);
+    }
+
+    private void retryUpdate(String expenseId, ExpenseDraft draft, String key) {
+        start();
+        track(expenses.updateExpense(groupId, group.getValue().revision(), expenseId, draft, key, new Callback<>() {
+            @Override public void onSuccess(MutationResult<Expense> result) {
+                updateGroupRevision(result.groupRevision());
+                done("Expense updated successfully.");
+                updated.setValue(result);
             }
             @Override public void onError(AppError e) { failed(e); }
         }));

@@ -109,3 +109,40 @@ test('every callable has fixtures and ownership; only authorized identity/group 
   }
   assert.deepEqual(Object.keys(require('../lib/index.js')).sort(), ['completeProfile', 'updateProfileName', 'createGroup', 'addGroupMember', 'updateGroup', 'deleteGroup', 'getGroupMemberProfiles', 'cleanupDeletedGroup', 'createExpense', 'updateExpense', 'deleteExpense', 'getGroupLedger'].sort());
 });
+
+test('validation rejects draft excluding payer from participants', () => {
+  const validation = require('../lib/infrastructure/validation.js');
+  const invalidDraft = {
+    title: 'Dinner',
+    amountCents: '1000',
+    payerId: 'user-1',
+    participantIds: ['user-2', 'user-3'],
+    splitMethod: 'EQUAL',
+    category: 'FOOD',
+    splitInputs: []
+  };
+  assert.throws(() => validation.expenseDraft(invalidDraft), (err) => {
+    return err.code === 'VALIDATION' && err.message.includes('Payer must be included in participants');
+  });
+});
+
+test('validation defaults missing or null category to OTHER', () => {
+  const validation = require('../lib/infrastructure/validation.js');
+  const draftWithoutCat = {
+    title: 'Dinner',
+    amountCents: '1000',
+    payerId: 'user-1',
+    participantIds: ['user-1', 'user-2'],
+    splitMethod: 'EQUAL',
+    splitInputs: []
+  };
+  const result1 = validation.expenseDraft(draftWithoutCat);
+  assert.equal(result1.category, 'OTHER');
+
+  const draftNullCat = {
+    ...draftWithoutCat,
+    category: null
+  };
+  const result2 = validation.expenseDraft(draftNullCat);
+  assert.equal(result2.category, 'OTHER');
+});

@@ -72,4 +72,8 @@
     <string name="expenses_delete_title">Delete this expense?</string>
     <string name="expenses_delete_message">This permanently deletes this expense record.</string>
     <string name="expenses_shares_title">Shares</string>
+    <string name="expenses_edit">Edit expense</string>
+    <string name="expenses_edit_title">Edit expense</string>
+    <string name="expenses_edit_intro">Update the amount, payer, participants, or category.</string>
+    <string name="expenses_save">Save changes</string>
 </resources>

@@ -19,7 +19,9 @@ public record ExpenseDraft(
         Objects.requireNonNull(payerId, "payerId");
         participantIds = ImmutableCollections.list(participantIds);
         Objects.requireNonNull(splitMethod, "splitMethod");
-        Objects.requireNonNull(category, "category");
+        if (category == null) {
+            category = Category.OTHER;
+        }
         splitInputs = ImmutableCollections.list(splitInputs);
     }
 }
