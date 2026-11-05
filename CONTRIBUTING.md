@@ -1,6 +1,6 @@
 # Working on SplitSmart
 
-This repository contains contract baseline v1 plus user/group management and X01. Read `docs/DESIGN_DECISIONS.md`
+This repository contains contract baseline v1 plus user/group management, X01, expenses, group balances and recorded settlements. Read `docs/DESIGN_DECISIONS.md`
 before implementing a requirement; the supplied catalog's larger foundation
 backlog does not mean those product features exist.
 
@@ -31,7 +31,7 @@ single coordination maintainer** for changes crossing these boundaries. All path
 | --- | --- | --- |
 | A — identity and groups (F01–F06) | `presentation/identity`, `presentation/groups`; Auth/Group services, User/Group repositories; Functions identity/groups modules | All on member projections and group access; D on group deletion/concurrent writes |
 | B — expenses and splitting (F07–F12) | `presentation/expenses`; future Expense service/repository and `domain/calculation/SplitCalculator` | C/D on signed amounts, immutable creator, revisions and transaction contracts |
-| C — balances (F13–F14) | `presentation/balances`; future Balance service and shared `domain/calculation/BalanceCalculator` | B/D on source snapshots, credits and authoritative debt validation |
+| C — balances (F13–F14) | `presentation/balances`; Balance service and shared `domain/calculation/BalanceCalculator` | B/D on source snapshots, credits and authoritative debt validation |
 | D — settlements (F15–F16) | `presentation/settlements`; future Settlement service/repository and backend module | B/C before any financial write implementation; A on membership |
 | E — history and summaries (F17–F21) | `presentation/history`; future History service and projection/filter value classes | B/D on dates and transaction data; A on group navigation |
 

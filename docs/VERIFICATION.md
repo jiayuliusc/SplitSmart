@@ -1,5 +1,126 @@
 # Verification record
 
+## Complete balance demo and recorded settlements - November 4, 2026
+
+Branch `feature/settlements-live-balances`, based on merged `main` at `41d912f`.
+The separate settlement list uses faint dividers and creator-only edit icons.
+Payment forms support create/edit/confirmed delete. Expense detail now adds the
+missing editor while retaining the previous creator-only delete action. Balance
+pages update on return and through foreground group-revision subscriptions.
+
+| Check | Result |
+| --- | --- |
+| App and instrumentation APK builds, strict lint | PASS |
+| Java tests | PASS: 57 tests, zero failures/errors |
+| TypeScript contracts and financial validation | PASS: 8 tests |
+| Firebase emulator suites | PASS: 30 tests |
+| Full Android instrumentation, API 33 Pixel 4 AVD | PASS: 11 tests |
+
+The full demo regression verifies $10 + $5 - $4 = $11 pairwise debt, the reciprocal
+Bob view including an independent Carol debt, same-pair offset without transitive
+simplification, separate $15 receivable/$4 payable totals, and another group's
+$100 debt not affecting that group. It creates/edits/deletes settlements through
+actual XML forms, hides another member's edit icon, preserves credits after a
+settled expense is deleted, and creates/edits/deletes an expense through actual
+screens. No manual Refresh button is used. Three SDK expense mutations are also
+observed while the balance page remains open, proving foreground invalidation
+rather than only reopen behavior.
+
+State tests cover rotation/process recreation, immutable request replay after
+ambiguous results, conflicts preserving dirty drafts, and unrelated read failures
+not discarding unknown writes. Live-refresh tests cover coalescing in-flight
+revisions, listener detachment and SDK session invalidation before queued worker
+publication. New near-range settlement preview coverage permits an unbounded
+replacement-debt intermediate while retaining bounded recorded/final ledgers.
+
+Backend tests cover authoritative debts, actor-derived payer/creator, immutable
+metadata, creator/member/outsider permissions, replacement debt with original
+removed, overpayment, self-payment, common revision/concurrency guard, success and
+error receipt replay/mismatch, ledger boundaries, group deletion and malformed
+stored data. Both expense and settlement writers use the common transaction
+runner and full financial snapshot.
+
+Review also exposed preexisting percentage remainder and Java multiplication
+issues. Both languages now allocate leftover cents to largest fractional remainder
+with UID tie-break, using exact intermediates. Regression examples include one
+cent at 10/90 percent, multiple leftovers, ties and maximum supported money.
+Historical records with incorrect percentage allocations fail explicitly; a
+reviewed reconciliation would be required before a deployment containing them.
+Existing equal-split UI data remains compatible. No migration or deployment ran.
+
+Visual QA inspected the settlement list/edit icon, payment form and separate
+balance totals using synthetic Alice/Bob/Carol/David identities. Screenshots and
+planning notes remain in ignored `tmp/settlements/`. Local tests use loopback
+Firebase emulators and the installed API 33 AVD; cloud, physical-device and other
+API-level runtime validation are not claimed. The app continues to target API 26
+minimum, enforced by strict lint.
+
+
+## Group balances (catalog feature 4) - November 3, 2026
+
+Implemented on `feature/group-balances`, from `main` at `f48e3d0`.
+Open a group and select **View balances**. The read-only screen shows amounts to
+pay/receive and every other member, including zero balances. Refresh and resume
+read the current coherent ledger. Offline settlements are included as source
+records; settlement creation/edit/delete screens and APIs remain future work.
+
+| Check | Result |
+| --- | --- |
+| Local app and instrumentation APK builds | PASS |
+| Java unit/contract tests | PASS: 34 tests, no failures/errors |
+| Strict Android lint | PASS |
+| TypeScript contract checks | PASS: 3 tests |
+| Firebase emulator regressions | PASS: 19 tests, including ledger authorization, integer money and malformed-data rejection |
+| Full Android instrumentation | PASS: 6 tests on API 33, including existing identity/group/diagnostic flows |
+| Larger text | PASS: 3 balance tests repeated with font scale 1.3 |
+
+Calculator coverage includes canonical expense/payment examples, creator/payer
+separation, reciprocal pair netting without transitive simplification, signed
+credits after expense removal, all other members including zeros, deterministic
+ordering, malformed ledgers and contract bounds. Intermediate totals above Java's
+long range remain exact until final range checks. Service tests verify queued
+worker/delivery behavior, read source/revision, transport errors, invalid scope,
+range failure, cancellation, and SDK session changes preceding observer delivery.
+
+Ledger tests use real Auth/Firestore/Functions emulators with synthetic integer
+expense/share/settlement fixtures. Both collections are read in one transaction;
+unsupported schemas or malformed amounts fail the whole ledger. Wire decoders
+reject partial financial arrays and noncanonical money; the new settlement decoder
+also rejects unknown fields. Existing canonical string expense storage is read
+for compatibility; this feature does not migrate the earlier expense writer.
+
+The Android balance flow exercises group-detail navigation, initial totals/member
+names, expense edit plus manual refresh, rotation/reopening, maximum supported
+amount display, deletion returning to settled state, missing scope and back
+navigation. Screenshots were inspected with large text; planning notes and images
+stay in ignored `tmp/balances/`.
+
+The full suite reproduced an existing lifecycle race: a paused group screen could
+redirect over the next registration while its old transition was still STARTED.
+Protected screens now defer account redirects until RESUMED, suppress duplicate
+redirects, and still clear private content immediately. The formerly failing
+partial-registration recovery flow passed in the full instrumentation rerun.
+Timeouts now capture a screenshot and the actual resumed activity/status.
+
+Performance sample: Apple Silicon macOS host, Android 13/API 33 Pixel 4 AVD,
+JBR 21.0.11, 500 synthetic expenses with three members, ten warmups and twenty
+samples. Local calculator median was 1.34 ms and p95 3.07 ms, below the 250 ms
+target. This measures calculation only, with no network or database I/O. It does
+not establish 500-transaction server-refresh or cold-start recovery latency.
+No cloud deployment, live credentials, physical-device test, or API 26/35 run was
+performed for this feature. The emulator font setting was restored after visual QA.
+
+Reproduce with the README prerequisites, an installed SDK and running AVD:
+
+```bash
+npm ci
+./gradlew :app:assembleLocalDebug :app:assembleLocalDebugAndroidTest :app:testLocalDebugUnitTest :app:lintLocalDebug
+npm run check:contracts
+npm run check:emulators
+npm run check:android
+```
+
+
 ## User/group management and X01 — November 2, 2026
 
 Scope is catalog section 1 and password reset X01. X06 and all financial, history,

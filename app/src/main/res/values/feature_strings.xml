@@ -27,6 +27,7 @@
     <string name="identity_retry">Retry same request</string>
     <string name="identity_pending_navigation">Wait for this action to finish, or retry it to recover its result before leaving.</string>
     <string name="identity_checking">Checking your account…</string>
+    <string name="identity_retry_access_hint">Retry the account check or sign out to continue.</string>
     <string name="identity_refresh">Refresh</string>
     <string name="groups_title">Your groups</string>
     <string name="groups_intro">Share a space with the people you split with.</string>
@@ -72,8 +73,4 @@
     <string name="expenses_delete_title">Delete this expense?</string>
     <string name="expenses_delete_message">This permanently deletes this expense record.</string>
     <string name="expenses_shares_title">Shares</string>
-    <string name="expenses_edit">Edit expense</string>
-    <string name="expenses_edit_title">Edit expense</string>
-    <string name="expenses_edit_intro">Update the amount, payer, participants, or category.</string>
-    <string name="expenses_save">Save changes</string>
 </resources>

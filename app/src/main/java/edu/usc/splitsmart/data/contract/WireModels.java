@@ -107,9 +107,7 @@ public final class WireModels {
             Objects.requireNonNull(payerId, "payerId");
             participantIds = ImmutableCollections.list(participantIds);
             Objects.requireNonNull(splitMethod, "splitMethod");
-            if (category == null) {
-                category = Category.OTHER;
-            }
+            Objects.requireNonNull(category, "category");
             splitInputs = ImmutableCollections.list(splitInputs);
         }
     }

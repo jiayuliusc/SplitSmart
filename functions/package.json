@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
-    "test:contracts": "npm run build && node --test test/contracts.test.cjs"
+    "test:contracts": "npm run build && node --test test/contracts.test.cjs test/financial-validation.test.cjs"
   },
   "dependencies": {
     "firebase-admin": "13.5.0",

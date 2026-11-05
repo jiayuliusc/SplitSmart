@@ -1,0 +1,30 @@
+<resources>
+    <string name="balances_title">Balances</string>
+    <string name="balances_intro">A clear view of what’s owed.</string>
+    <string name="balances_open">View balances</string>
+    <string name="balances_owe">You owe</string>
+    <string name="balances_receive">You’re owed</string>
+    <string name="balances_people">Between you and each member</string>
+    <string name="balances_pair_owe">You owe them</string>
+    <string name="balances_pair_receive">Owes you</string>
+    <string name="balances_pair_zero">Settled up</string>
+    <string name="balances_zero">All settled up</string>
+    <string name="balances_zero_detail">There are no outstanding balances in this group.</string>
+    <string name="balances_solo">Add another member and record an expense to start sharing costs.</string>
+    <string name="balances_member">Group member</string>
+    <string name="balances_refresh">Refresh balances</string>
+    <string name="balances_loading">Updating balances…</string>
+    <string name="balances_note">Includes expenses and recorded offline payments. Each balance stays between you and that person.</string>
+    <string name="balances_row_accessibility">%1$s. %2$s. %3$s.</string>
+    <color name="balance_ink">#252A2D</color>
+    <color name="balance_muted">#62686B</color>
+    <color name="balance_receive">#216455</color>
+    <color name="balance_owe">#990000</color>
+    <color name="balance_line">#E5E2DD</color>
+    <string name="balances_settlements">Recorded payments</string>
+    <string name="balances_add_settlement">Add settlement</string>
+    <string name="balances_settlements_empty">No payments recorded yet.</string>
+    <string name="balances_expenses">Expenses</string>
+    <string name="balances_add_expense">Add expense</string>
+    <string name="balances_expenses_empty">No expenses recorded yet.</string>
+</resources>

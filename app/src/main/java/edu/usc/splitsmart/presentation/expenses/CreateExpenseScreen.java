@@ -2,7 +2,6 @@ package edu.usc.splitsmart.presentation.expenses;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.*;
 import androidx.lifecycle.ViewModelProvider;
 import java.util.*;
@@ -13,19 +12,16 @@ import edu.usc.splitsmart.presentation.navigation.NavigationContract;
 
 public final class CreateExpenseScreen extends ProtectedScreen {
     private ExpenseViewModel model;
+    private String expenseId;
+    private boolean rendering;
     private final List<MemberProfile> memberProfiles = new ArrayList<>();
     private final List<CheckBox> participantBoxes = new ArrayList<>();
-    private String expenseId;
-    private boolean isEditMode;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         screen(R.layout.screen_expense_create);
         String groupId = getIntent().getStringExtra(NavigationContract.GROUP_ID);
-        expenseId = getIntent().getStringExtra(NavigationContract.EXPENSE_ID);
-        isEditMode = expenseId != null && expenseId.matches("[A-Za-z0-9_-]{1,128}");
-
         if (groupId == null || !groupId.matches("[A-Za-z0-9_-]{1,128}")) {
             text(R.id.access_status, getString(R.string.groups_missing_scope));
             show(R.id.access_retry, false);
@@ -33,73 +29,48 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             return;
         }
 
-        if (isEditMode) {
-            text(R.id.feature_title, getString(R.string.expenses_edit_title));
-            text(R.id.feature_intro, getString(R.string.expenses_edit_intro));
-            ((Button) findViewById(R.id.expense_submit)).setText(R.string.expenses_save);
-        }
-
+        expenseId = getIntent().getStringExtra(NavigationContract.EXPENSE_ID);
+        if (expenseId != null && !expenseId.matches("[A-Za-z0-9_-]{1,128}")) { finish(); return; }
         model = new ViewModelProvider(this, new FeatureFactory(this, getIntent().getExtras(),
             saved -> new ExpenseViewModel(saved, services().expenses(), services().groups(), groupId))).get(ExpenseViewModel.class);
 
         bind(model, R.id.expense_submit);
 
-        // Setup Category Spinner
+        bindDraft(model, R.id.expense_title, "title");
+        bindDraft(model, R.id.expense_amount, "amount");
+        bindDraft(model, R.id.expense_note, "note");
         Spinner categorySpinner = findViewById(R.id.expense_category_spinner);
         ArrayAdapter<Category> catAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, Category.values());
         catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categorySpinner.setAdapter(catAdapter);
-
-        // Setup Payer Spinner Listener
-        Spinner payerSpinner = findViewById(R.id.expense_payer_spinner);
-        payerSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                updatePayerSelection(position);
+        categorySpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
+                if (!rendering) model.editDraft("category", Category.values()[position].name());
             }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
         });
-
-        model.members.observe(this, members -> {
-            memberProfiles.clear();
-            memberProfiles.addAll(members);
-
-            // Populate Payer Spinner
-            List<String> names = new ArrayList<>();
-            for (MemberProfile m : members) names.add(m.name());
-            ArrayAdapter<String> payerAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
-            payerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            payerSpinner.setAdapter(payerAdapter);
-
-            // Populate Participants Checkboxes
-            LinearLayout container = findViewById(R.id.expense_participants_container);
-            container.removeAllViews();
-            participantBoxes.clear();
-            for (MemberProfile m : members) {
-                CheckBox box = new CheckBox(this);
-                box.setText(m.name());
-                box.setTag(m.uid());
-                box.setChecked(true);
-                participantBoxes.add(box);
-                container.addView(box);
-            }
-
-            if (isEditMode && model.expense.getValue() != null) {
-                populateExpenseData(model.expense.getValue());
-            } else {
-                updatePayerSelection(payerSpinner.getSelectedItemPosition());
-            }
-        });
-
-        if (isEditMode) {
-            model.expense.observe(this, exp -> {
-                if (exp != null && !memberProfiles.isEmpty()) {
-                    populateExpenseData(exp);
+        ((Spinner) findViewById(R.id.expense_payer_spinner)).setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
+                if (!rendering && position >= 0 && position < memberProfiles.size()) {
+                    model.editDraft("payer", memberProfiles.get(position).uid());
+                    lockControls();
                 }
-            });
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
+        });
+        model.members.observe(this, members -> {
+            memberProfiles.clear(); memberProfiles.addAll(members);
+            renderDraft();
+        });
+        model.expense.observe(this, expense -> {
+            if (expense != null && expenseId != null) { model.initializeEditor(expense); renderDraft(); }
+        });
+        model.busy.observe(this, ignored -> lockControls());
+        if (expenseId != null) {
+            text(R.id.feature_title, getString(R.string.expenses_edit_title));
+            text(R.id.expense_submit, getString(R.string.expenses_save));
         }
+        renderDraft();
 
         findViewById(R.id.expense_submit).setOnClickListener(v -> submit());
         findViewById(R.id.identity_retry).setOnClickListener(v -> model.retry());
@@ -113,74 +84,7 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             finish();
         });
 
-        model.updated.observe(this, result -> {
-            if (result == null) return;
-            setResult(RESULT_OK, new Intent()
-                .putExtra(NavigationContract.RESULT_REQUEST_ID, result.requestId())
-                .putExtra(NavigationContract.RESULT_GROUP_ID, groupId)
-                .putExtra(NavigationContract.RESULT_GROUP_REVISION, result.groupRevision().longValue()));
-            finish();
-        });
-
         protect();
-    }
-
-    private void updatePayerSelection(int payerIdx) {
-        if (payerIdx < 0 || payerIdx >= memberProfiles.size()) return;
-        String currentPayerUid = memberProfiles.get(payerIdx).uid();
-        for (CheckBox box : participantBoxes) {
-            String uid = (String) box.getTag();
-            if (uid != null && uid.equals(currentPayerUid)) {
-                box.setChecked(true);
-                box.setEnabled(false);
-            } else {
-                box.setEnabled(true);
-            }
-        }
-    }
-
-    private void populateExpenseData(Expense exp) {
-        EditText titleEdit = findViewById(R.id.expense_title);
-        EditText amountEdit = findViewById(R.id.expense_amount);
-        EditText noteEdit = findViewById(R.id.expense_note);
-
-        titleEdit.setText(exp.title());
-        amountEdit.setText(String.format(Locale.US, "%.2f", exp.amountCents() / 100.0));
-        if (exp.note() != null) {
-            noteEdit.setText(exp.note());
-        }
-
-        Spinner categorySpinner = findViewById(R.id.expense_category_spinner);
-        Category cat = exp.category() != null ? exp.category() : Category.OTHER;
-        Category[] categories = Category.values();
-        for (int i = 0; i < categories.length; i++) {
-            if (categories[i] == cat) {
-                categorySpinner.setSelection(i);
-                break;
-            }
-        }
-
-        Spinner payerSpinner = findViewById(R.id.expense_payer_spinner);
-        int payerIndex = -1;
-        for (int j = 0; j < memberProfiles.size(); j++) {
-            if (memberProfiles.get(j).uid().equals(exp.payerId())) {
-                payerIndex = j;
-                break;
-            }
-        }
-        if (payerIndex >= 0) {
-            payerSpinner.setSelection(payerIndex);
-        }
-
-        List<String> partIds = exp.participantIds() != null ? exp.participantIds() : List.of();
-        for (CheckBox box : participantBoxes) {
-            String uid = (String) box.getTag();
-            box.setChecked(partIds.contains(uid));
-        }
-
-        if (payerIndex >= 0) {
-            updatePayerSelection(payerIndex);
-        }
     }
 
     private void submit() {
@@ -192,9 +96,6 @@ public final class CreateExpenseScreen extends ProtectedScreen {
         String payerId = memberProfiles.get(payerIdx).uid();
 
         Category cat = (Category) categorySpinner.getSelectedItem();
-        if (cat == null) {
-            cat = Category.OTHER;
-        }
 
         List<String> selectedParticipants = new ArrayList<>();
         for (CheckBox box : participantBoxes) {
@@ -203,21 +104,79 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             }
         }
 
-        if (isEditMode) {
-            model.update(expenseId, input(R.id.expense_title), input(R.id.expense_amount), payerId, selectedParticipants, cat, input(R.id.expense_note));
-        } else {
-            model.create(input(R.id.expense_title), input(R.id.expense_amount), payerId, selectedParticipants, cat, input(R.id.expense_note));
+        ExpenseDraft original = model.originalDraft();
+        if (expenseId != null && original != null && original.splitMethod() != SplitMethod.EQUAL) {
+            selectedParticipants = original.participantIds();
         }
+        if (expenseId == null) model.create(input(R.id.expense_title), input(R.id.expense_amount), payerId, selectedParticipants, cat, input(R.id.expense_note));
+        else model.update(expenseId, input(R.id.expense_title), input(R.id.expense_amount), payerId, selectedParticipants, cat, input(R.id.expense_note));
+    }
+
+    private void renderDraft() {
+        rendering = true;
+        text(R.id.expense_title, model.draft("title", ""));
+        text(R.id.expense_amount, model.draft("amount", ""));
+        text(R.id.expense_note, model.draft("note", ""));
+        Spinner category = findViewById(R.id.expense_category_spinner);
+        category.setSelection(Category.valueOf(model.draft("category", Category.OTHER.name())).ordinal());
+        Spinner payer = findViewById(R.id.expense_payer_spinner);
+        List<String> names = new ArrayList<>();
+        for (MemberProfile member : memberProfiles) names.add(member.name());
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        payer.setAdapter(adapter);
+        String payerId = model.draft("payer", currentUid == null ? "" : currentUid);
+        for (int i = 0; i < memberProfiles.size(); i++) if (memberProfiles.get(i).uid().equals(payerId)) payer.setSelection(i);
+        String defaultParticipants = String.join(",", memberProfiles.stream().map(MemberProfile::uid).collect(java.util.stream.Collectors.toList()));
+        Set<String> selected = new HashSet<>(Arrays.asList(model.draft("participants", defaultParticipants).split(",")));
+        LinearLayout container = findViewById(R.id.expense_participants_container);
+        container.removeAllViews(); participantBoxes.clear();
+        for (MemberProfile member : memberProfiles) {
+            CheckBox box = new CheckBox(this);
+            box.setText(member.name()); box.setTag(member.uid()); box.setChecked(selected.contains(member.uid()));
+            box.setMinHeight((int) (48 * getResources().getDisplayMetrics().density));
+            box.setOnCheckedChangeListener((button, checked) -> {
+                if (rendering) return;
+                List<String> ids = new ArrayList<>();
+                for (CheckBox item : participantBoxes) if (item.isChecked()) ids.add((String) item.getTag());
+                model.editDraft("participants", String.join(",", ids));
+            });
+            participantBoxes.add(box); container.addView(box);
+        }
+        ExpenseDraft original = model.originalDraft();
+        if (original != null && original.splitMethod() != SplitMethod.EQUAL) {
+            text(R.id.feature_intro, getString(original.splitMethod() == SplitMethod.EXACT
+                ? R.string.expenses_exact_preserved : R.string.expenses_percentage_preserved));
+        }
+        rendering = false;
+        lockControls();
+    }
+    private void lockControls() {
+        boolean locked = model.isBusy() || model.pending();
+        if (!model.isBusy() && model.ledger.getValue() == null) show(R.id.identity_retry, true);
+        boolean ready = expenseId == null || model.originalDraft() != null;
+        ExpenseDraft original = model.originalDraft();
+        boolean nonEqual = original != null && original.splitMethod() != SplitMethod.EQUAL;
+        findViewById(R.id.expense_payer_spinner).setEnabled(!locked && ready);
+        findViewById(R.id.expense_category_spinner).setEnabled(!locked && ready);
+        findViewById(R.id.expense_amount).setEnabled(!locked && ready && !(original != null && original.splitMethod() == SplitMethod.EXACT));
+        Spinner payer = findViewById(R.id.expense_payer_spinner);
+        int payerIndex = payer.getSelectedItemPosition();
+        String payerId = payerIndex >= 0 && payerIndex < memberProfiles.size() ? memberProfiles.get(payerIndex).uid() : null;
+        for (CheckBox box : participantBoxes) {
+            boolean isPayer = box.getTag().equals(payerId);
+            if (isPayer && !box.isChecked()) box.setChecked(true);
+            box.setEnabled(!locked && ready && !nonEqual && !isPayer);
+        }
+        findViewById(R.id.expense_submit).setEnabled(!locked && ready && model.ledger.getValue() != null);
     }
 
     @Override
     protected void onAuthorized(User user) {
         if (model != null) {
             model.bindUser(user.uid());
-            model.loadGroup();
-            if (isEditMode) {
-                model.loadExpense(expenseId);
-            }
+            if (expenseId == null) model.loadGroup();
+            else model.loadExpense(expenseId);
         }
     }
 

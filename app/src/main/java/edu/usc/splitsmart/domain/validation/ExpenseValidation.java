@@ -28,6 +28,9 @@ public final class ExpenseValidation {
         if (value.participantIds() == null || value.participantIds().size() < 2 || !value.participantIds().contains(value.payerId())) {
             return invalid("Select at least 2 participants including the payer.", "participantIds");
         }
+        if (value.category() == null) {
+            return invalid("Select a category.", "category");
+        }
         if (value.note() != null && value.note().length() > 1000) {
             return invalid("Note must be at most 1000 characters.", "note");
         }
