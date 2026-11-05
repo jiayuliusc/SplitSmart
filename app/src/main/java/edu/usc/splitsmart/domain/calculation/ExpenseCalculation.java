@@ -39,11 +39,11 @@ public final class ExpenseCalculation {
         }
 
         if (draft.splitMethod() == SplitMethod.PERCENTAGE) {
-            List<ExpenseShare> shares = new ArrayList<>();
+            record Allocation(String participantId, BigInteger cents, int basisPoints, int fraction) { }
             BigInteger totalValue = BigInteger.valueOf(total);
             BigInteger sumAllocated = BigInteger.ZERO;
-            List<BigInteger> baseAmts = new ArrayList<>();
-            List<Integer> basisPoints = new ArrayList<>();
+            BigInteger denominator = BigInteger.valueOf(10000);
+            List<Allocation> allocations = new ArrayList<>();
             int basisPointTotal = 0;
             for (String pId : sorted) {
                 SplitInput input = inputs.get(pId);
@@ -53,10 +53,11 @@ public final class ExpenseCalculation {
                 }
                 int bp = input.basisPoints();
                 basisPointTotal += bp;
-                BigInteger amt = totalValue.multiply(BigInteger.valueOf(bp)).divide(BigInteger.valueOf(10000));
+                BigInteger[] quotientAndRemainder = totalValue.multiply(BigInteger.valueOf(bp))
+                    .divideAndRemainder(denominator);
+                BigInteger amt = quotientAndRemainder[0];
                 sumAllocated = sumAllocated.add(amt);
-                baseAmts.add(amt);
-                basisPoints.add(bp);
+                allocations.add(new Allocation(pId, amt, bp, quotientAndRemainder[1].intValue()));
             }
             if (basisPointTotal != 10000) {
                 throw new IllegalArgumentException("Percentages must total exactly 100%.");
@@ -67,14 +68,20 @@ public final class ExpenseCalculation {
                 throw new ArithmeticException("Invalid percentage rounding remainder.");
             }
             int remainder = remainderValue.intValue();
-            for (int i = 0; i < sorted.size(); i++) {
-                String pId = sorted.get(i);
-                int bp = basisPoints.get(i);
-                BigInteger amount = baseAmts.get(i).add(i < remainder ? BigInteger.ONE : BigInteger.ZERO);
+            List<Allocation> ranked = new ArrayList<>(allocations);
+            ranked.sort(Comparator.comparingInt(Allocation::fraction).reversed()
+                .thenComparing(Allocation::participantId));
+            Set<String> extraCent = new HashSet<>();
+            for (int i = 0; i < remainder; i++) extraCent.add(ranked.get(i).participantId());
+
+            List<ExpenseShare> shares = new ArrayList<>();
+            for (Allocation allocation : allocations) {
+                BigInteger amount = allocation.cents().add(
+                    extraCent.contains(allocation.participantId()) ? BigInteger.ONE : BigInteger.ZERO);
                 if (amount.signum() < 0 || amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
                     throw new ArithmeticException("Calculated share exceeds the supported range.");
                 }
-                shares.add(new ExpenseShare(pId, amount.longValue(), bp));
+                shares.add(new ExpenseShare(allocation.participantId(), amount.longValue(), allocation.basisPoints()));
             }
             return ImmutableCollections.list(shares);
         }

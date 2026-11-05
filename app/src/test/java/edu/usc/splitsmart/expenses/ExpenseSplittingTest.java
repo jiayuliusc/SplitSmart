@@ -53,7 +53,8 @@ public final class ExpenseSplittingTest {
         assertNull(ExpenseValidation.expense(value));
         List<ExpenseShare> shares = ExpenseCalculation.computeShares(value);
         assertEquals(1001, shares.stream().mapToLong(ExpenseShare::amountCents).sum());
-        assertEquals(251, shares.get(0).amountCents());
+        assertEquals(250, shares.get(0).amountCents());
+        assertEquals(501, shares.get(1).amountCents());
     }
 
     @Test public void percentageSplitMustTotalExactlyOneHundredPercent() {

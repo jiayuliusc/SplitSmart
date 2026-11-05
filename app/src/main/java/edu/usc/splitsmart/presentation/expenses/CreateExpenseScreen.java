@@ -18,6 +18,7 @@ import edu.usc.splitsmart.presentation.navigation.NavigationContract;
 /** Expense editor with local, pre-save previews for equal, exact and percentage splits. */
 public final class CreateExpenseScreen extends ProtectedScreen {
     private ExpenseViewModel model;
+    private String expenseId;
     private final List<MemberProfile> memberProfiles = new ArrayList<>();
     private final List<CheckBox> participantBoxes = new ArrayList<>();
     private final Map<String, EditText> splitEditors = new HashMap<>();
@@ -31,6 +32,8 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             text(R.id.access_status, getString(R.string.groups_missing_scope));
             show(R.id.access_retry, false); show(R.id.access_logout, false); return;
         }
+        expenseId = getIntent().getStringExtra(NavigationContract.EXPENSE_ID);
+        if (expenseId != null && !expenseId.matches("[A-Za-z0-9_-]{1,128}")) { finish(); return; }
 
         model = new ViewModelProvider(this, new FeatureFactory(this, getIntent().getExtras(),
             saved -> new ExpenseViewModel(saved, services().expenses(), services().groups(), groupId)))
@@ -43,6 +46,17 @@ public final class CreateExpenseScreen extends ProtectedScreen {
         watch(R.id.expense_amount, this::requestPreview);
 
         model.members.observe(this, this::renderMembers);
+        model.expense.observe(this, expense -> {
+            if (expense == null || expenseId == null) return;
+            model.initializeEditor(expense);
+            text(R.id.expense_title, model.draft("title", ""));
+            text(R.id.expense_amount, model.draft("amount", ""));
+            text(R.id.expense_note, model.draft("note", ""));
+            setupCategorySpinner();
+            setupSplitMethodSpinner();
+            renderMembers(model.members.getValue() == null ? List.of() : model.members.getValue());
+            if (expense.splitMethod() == SplitMethod.EXACT) findViewById(R.id.expense_amount).setEnabled(false);
+        });
         model.splitPreview.observe(this, this::renderPreview);
         model.splitValidation.observe(this, message -> {
             String value = message == null ? "" : message;
@@ -51,6 +65,10 @@ public final class CreateExpenseScreen extends ProtectedScreen {
         });
         model.splitValid.observe(this, valid -> updateSubmitState());
         model.busy.observe(this, busy -> updateSubmitState());
+        if (expenseId != null) {
+            text(R.id.feature_title, getString(R.string.expenses_edit_title));
+            text(R.id.expense_submit, getString(R.string.expenses_save));
+        }
 
         findViewById(R.id.expense_submit).setOnClickListener(v -> submit());
         findViewById(R.id.identity_retry).setOnClickListener(v -> model.retry());
@@ -88,6 +106,7 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             if (category != null) model.editDraft("category", category.name());
             requestPreview();
         }));
+        spinner.setEnabled(expenseId == null);
     }
 
     private void setupSplitMethodSpinner() {
@@ -141,6 +160,8 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             CheckBox box = new CheckBox(this);
             box.setText(member.name()); box.setTag(member.uid());
             box.setChecked(selected == null || selected.contains(member.uid()));
+            ExpenseDraft original = model.originalDraft();
+            box.setEnabled(expenseId == null || original == null || original.splitMethod() == SplitMethod.EQUAL);
             box.setOnCheckedChangeListener((button, checked) -> {
                 if (rendering) return;
                 persistParticipants(); rebuildSplitEditors(); requestPreview();
@@ -160,11 +181,12 @@ public final class CreateExpenseScreen extends ProtectedScreen {
 
         for (String participantId : selectedParticipantIds()) {
             MemberProfile member = member(participantId);
+            String participantName = member == null ? participantId : member.name();
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(android.view.Gravity.CENTER_VERTICAL);
             TextView name = new TextView(this);
-            name.setText(member == null ? participantId : member.name()); name.setTextSize(16);
+            name.setText(participantName); name.setTextSize(16);
             row.addView(name, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
             EditText editor = new EditText(this);
@@ -175,13 +197,14 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             String key = splitDraftKey(method, participantId);
             editor.setText(model.draft(key, ""));
             editor.setContentDescription(getString(R.string.split_input_content_description,
-                member == null ? participantId : member.name(),
+                participantName,
                 method == SplitMethod.EXACT ? getString(R.string.split_exact) : getString(R.string.split_percentage)));
             editor.addTextChangedListener(new SimpleWatcher() {
                 @Override public void afterTextChanged(Editable value) {
                     model.editDraft(key, value.toString()); requestPreview();
                 }
             });
+            editor.setEnabled(expenseId == null);
             row.addView(editor, new LinearLayout.LayoutParams(dp(132), LinearLayout.LayoutParams.WRAP_CONTENT));
             splitEditors.put(participantId, editor); container.addView(row);
         }
@@ -200,10 +223,14 @@ public final class CreateExpenseScreen extends ProtectedScreen {
     private void submit() {
         if (!Boolean.TRUE.equals(model.splitValid.getValue())) { requestPreview(); return; }
         try {
-            model.create(input(R.id.expense_title), input(R.id.expense_amount), payerId(),
-                selectedParticipantIds(), splitMethod(), splitInputs(),
-                (Category) ((Spinner) findViewById(R.id.expense_category_spinner)).getSelectedItem(),
-                input(R.id.expense_note));
+            Category category = (Category) ((Spinner) findViewById(R.id.expense_category_spinner)).getSelectedItem();
+            if (expenseId == null) {
+                model.create(input(R.id.expense_title), input(R.id.expense_amount), payerId(),
+                    selectedParticipantIds(), splitMethod(), splitInputs(), category, input(R.id.expense_note));
+            } else {
+                model.update(expenseId, input(R.id.expense_title), input(R.id.expense_amount), payerId(),
+                    selectedParticipantIds(), category, input(R.id.expense_note));
+            }
         } catch (IllegalArgumentException error) { model.clearSplitPreview(error.getMessage()); }
     }
 
@@ -250,7 +277,7 @@ public final class CreateExpenseScreen extends ProtectedScreen {
     private void updateSubmitState() {
         View submit = findViewById(R.id.expense_submit);
         if (submit != null && model != null) submit.setEnabled(Boolean.TRUE.equals(model.splitValid.getValue())
-            && !model.isBusy() && !model.pending());
+            && !model.isBusy() && !model.pending() && model.ledger.getValue() != null);
     }
 
     private SplitMethod splitMethod() {
@@ -302,7 +329,10 @@ public final class CreateExpenseScreen extends ProtectedScreen {
     }
 
     @Override protected void onAuthorized(User user) {
-        if (model != null) { model.bindUser(user.uid()); model.loadGroup(); }
+        if (model != null) {
+            model.bindUser(user.uid());
+            if (expenseId == null) model.loadGroup(); else model.loadExpense(expenseId);
+        }
     }
     @Override protected void onAccessLost() { if (model != null) model.cancelOperations(); }
 }
