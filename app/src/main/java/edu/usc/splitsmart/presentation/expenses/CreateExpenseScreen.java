@@ -35,6 +35,8 @@ public final class CreateExpenseScreen extends ProtectedScreen {
         expenseId = getIntent().getStringExtra(NavigationContract.EXPENSE_ID);
         if (expenseId != null && !expenseId.matches("[A-Za-z0-9_-]{1,128}")) { finish(); return; }
 
+        expenseId = getIntent().getStringExtra(NavigationContract.EXPENSE_ID);
+        if (expenseId != null && !expenseId.matches("[A-Za-z0-9_-]{1,128}")) { finish(); return; }
         model = new ViewModelProvider(this, new FeatureFactory(this, getIntent().getExtras(),
             saved -> new ExpenseViewModel(saved, services().expenses(), services().groups(), groupId)))
             .get(ExpenseViewModel.class);

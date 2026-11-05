@@ -101,11 +101,11 @@ test('common numeric, optional and timestamp encodings remain exact', () => {
   fixture.invalidSignedCentsExamples.forEach(value => assert.throws(() => checkSigned(value)));
 });
 
-test('every callable has fixtures and ownership; only authorized identity/group handlers are exported', () => {
+test('every callable has fixtures and ownership; only implemented identity/group and financial handlers are exported', () => {
   assert.deepEqual(v1.CALLABLE_OWNERS, fixture.owners);
   for (const name of Object.keys(v1.CALLABLE_OWNERS)) {
     assert.ok(fixture.cases.some(c => c.type === `${name}.request`));
     assert.ok(fixture.cases.some(c => c.type === `${name}.response`));
   }
-  assert.deepEqual(Object.keys(require('../lib/index.js')).sort(), ['completeProfile', 'updateProfileName', 'createGroup', 'addGroupMember', 'updateGroup', 'deleteGroup', 'getGroupMemberProfiles', 'cleanupDeletedGroup', 'createExpense', 'updateExpense', 'deleteExpense', 'getGroupLedger'].sort());
+  assert.deepEqual(Object.keys(require('../lib/index.js')).sort(), ['completeProfile', 'updateProfileName', 'createGroup', 'addGroupMember', 'updateGroup', 'deleteGroup', 'getGroupMemberProfiles', 'cleanupDeletedGroup', 'createExpense', 'updateExpense', 'deleteExpense', 'getGroupLedger', 'createSettlement', 'updateSettlement', 'deleteSettlement'].sort());
 });

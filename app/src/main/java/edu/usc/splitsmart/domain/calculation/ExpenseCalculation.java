@@ -2,6 +2,7 @@ package edu.usc.splitsmart.domain.calculation;
 
 import java.math.BigInteger;
 import java.util.*;
+import java.math.BigInteger;
 import edu.usc.splitsmart.domain.model.*;
 import edu.usc.splitsmart.util.ImmutableCollections;
 

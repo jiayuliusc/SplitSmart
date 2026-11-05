@@ -1,5 +1,90 @@
 # Verification record
 
+## Group history, search and monthly summary (F17–F21) - November 4, 2026
+
+Branch `feature/history-monthly-summary`, based on merged `main` at `50002a1`.
+`HistoryProjection` merges the coherent ledger into history items (settlements
+titled "Settlement", no category, payer/payee involved), applies case-insensitive
+title/note search, AND-combined type/category/member filters (category excludes
+settlements) and the SCHEMA.md (createdAt, type, recordId) ordering. Monthly
+summaries use immutable localDate, include all five categories and exclude
+settlements. `DefaultHistoryService` follows the balance service's session,
+cancellation and worker-thread protocol. The group page hosts the history section;
+read-only settlement detail and monthly summary screens were added. History and
+summary reload FRESH on resume and after child results.
+
+| Check                                            | Result                                                              |
+|--------------------------------------------------|---------------------------------------------------------------------|
+| App and instrumentation APK builds, strict lint  | PASS                                                                |
+| Java tests                                       | PASS: 75 tests, zero failures/errors (18 new HistoryProjectionTest) |
+| TypeScript contracts and financial validation    | PASS: 8 tests                                                       |
+| Firebase emulator suites                         | PASS: 30 tests                                                      |
+| Full Android instrumentation, API 35 Pixel 9 AVD | PASS: 11 tests                                                      |
+
+Projection tests cover item shape, newest/oldest ordering with cross-collection
+ID ties, each filter, AND combination, null notes, the CONTRACTS.md monthly
+fixture, localDate month boundaries, all-zero categories and overflow. Manual QA
+used three synthetic members with two expenses and one settlement, checking each
+filter, sorting, detail navigation, creator-only settlement editing, rotation,
+and immediate updates after expense create/delete and settlement edit. No server
+code, schema or rules changed.
+
+## Complete balance demo and recorded settlements - November 4, 2026
+
+Branch `feature/settlements-live-balances`, based on merged `main` at `41d912f`.
+The separate settlement list uses faint dividers and creator-only edit icons.
+Payment forms support create/edit/confirmed delete. Expense detail now adds the
+missing editor while retaining the previous creator-only delete action. Balance
+pages update on return and through foreground group-revision subscriptions.
+
+| Check | Result |
+| --- | --- |
+| App and instrumentation APK builds, strict lint | PASS |
+| Java tests | PASS: 57 tests, zero failures/errors |
+| TypeScript contracts and financial validation | PASS: 8 tests |
+| Firebase emulator suites | PASS: 30 tests |
+| Full Android instrumentation, API 33 Pixel 4 AVD | PASS: 11 tests |
+
+The full demo regression verifies $10 + $5 - $4 = $11 pairwise debt, the reciprocal
+Bob view including an independent Carol debt, same-pair offset without transitive
+simplification, separate $15 receivable/$4 payable totals, and another group's
+$100 debt not affecting that group. It creates/edits/deletes settlements through
+actual XML forms, hides another member's edit icon, preserves credits after a
+settled expense is deleted, and creates/edits/deletes an expense through actual
+screens. No manual Refresh button is used. Three SDK expense mutations are also
+observed while the balance page remains open, proving foreground invalidation
+rather than only reopen behavior.
+
+State tests cover rotation/process recreation, immutable request replay after
+ambiguous results, conflicts preserving dirty drafts, and unrelated read failures
+not discarding unknown writes. Live-refresh tests cover coalescing in-flight
+revisions, listener detachment and SDK session invalidation before queued worker
+publication. New near-range settlement preview coverage permits an unbounded
+replacement-debt intermediate while retaining bounded recorded/final ledgers.
+
+Backend tests cover authoritative debts, actor-derived payer/creator, immutable
+metadata, creator/member/outsider permissions, replacement debt with original
+removed, overpayment, self-payment, common revision/concurrency guard, success and
+error receipt replay/mismatch, ledger boundaries, group deletion and malformed
+stored data. Both expense and settlement writers use the common transaction
+runner and full financial snapshot.
+
+Review also exposed preexisting percentage remainder and Java multiplication
+issues. Both languages now allocate leftover cents to largest fractional remainder
+with UID tie-break, using exact intermediates. Regression examples include one
+cent at 10/90 percent, multiple leftovers, ties and maximum supported money.
+Historical records with incorrect percentage allocations fail explicitly; a
+reviewed reconciliation would be required before a deployment containing them.
+Existing equal-split UI data remains compatible. No migration or deployment ran.
+
+Visual QA inspected the settlement list/edit icon, payment form and separate
+balance totals using synthetic Alice/Bob/Carol/David identities. Screenshots and
+planning notes remain in ignored `tmp/settlements/`. Local tests use loopback
+Firebase emulators and the installed API 33 AVD; cloud, physical-device and other
+API-level runtime validation are not claimed. The app continues to target API 26
+minimum, enforced by strict lint.
+
+
 ## Group balances (catalog feature 4) - November 3, 2026
 
 Implemented on `feature/group-balances`, from `main` at `f48e3d0`.

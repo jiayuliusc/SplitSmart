@@ -9,8 +9,11 @@ import edu.usc.splitsmart.data.firebase.*;
 import edu.usc.splitsmart.service.*;
 import edu.usc.splitsmart.service.expenses.DefaultExpenseService;
 import edu.usc.splitsmart.service.balances.DefaultBalanceService;
+import edu.usc.splitsmart.service.history.DefaultHistoryService;
 import edu.usc.splitsmart.service.identity.DefaultAuthService;
 import edu.usc.splitsmart.service.groups.DefaultGroupService;
+import edu.usc.splitsmart.service.groups.DefaultGroupUpdatesService;
+import edu.usc.splitsmart.service.settlements.DefaultSettlementService;
 
 /** Manual dependency wiring; add agreed repository/service instances as features arrive. */
 public final class AppContainer implements FeatureServices {
@@ -19,6 +22,9 @@ public final class AppContainer implements FeatureServices {
     private final GroupService groups;
     private final ExpenseService expenses;
     private final BalanceService balances;
+    private final SettlementService settlements;
+    private final GroupUpdatesService groupUpdates;
+    private final HistoryService history;
 
     AppContainer(Context context) {
         firebaseClients = new FirebaseClients(context);
@@ -32,8 +38,13 @@ public final class AppContainer implements FeatureServices {
         groups = new DefaultGroupService(new FirebaseGroupRepository(repositories), delivery);
         FirebaseExpenseRepository expenseRepo = new FirebaseExpenseRepository(repositories);
         expenses = new DefaultExpenseService(expenseRepo, expenseRepo, delivery);
+        settlements = new DefaultSettlementService(new FirebaseSettlementRepository(repositories,expenseRepo),expenseRepo,delivery);
+        groupUpdates = new DefaultGroupUpdatesService(new FirebaseGroupUpdatesRepository(repositories),delivery);
         balances = new DefaultBalanceService(auth, expenseRepo,
             Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "splitsmart-balances"); t.setDaemon(true); return t; }), delivery, uid -> uid.equals(firebaseClients.getAuth().getUid()));
+        history = new DefaultHistoryService(auth, expenseRepo,
+            Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "splitsmart-history"); t.setDaemon(true); return t; }),
+            delivery, uid -> uid.equals(firebaseClients.getAuth().getUid()));
     }
 
     /** Infrastructure seam for repository construction and the local instrumentation check. */
@@ -44,6 +55,7 @@ public final class AppContainer implements FeatureServices {
     @Override public GroupService groups() { return groups; }
     @Override public ExpenseService expenses() { return expenses; }
     @Override public BalanceService balances() { return balances; }
-    @Override public SettlementService settlements() { return null; }
-    @Override public HistoryService history() { return null; }
+    @Override public SettlementService settlements() { return settlements; }
+    @Override public GroupUpdatesService groupUpdates() { return groupUpdates; }
+    @Override public HistoryService history() { return history; }
 }
