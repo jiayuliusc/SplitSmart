@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settlement detail -->
+    <string name="history_settlement_title">Settlement</string>
+    <string name="history_label_paid_by">Paid by</string>
+    <string name="history_label_paid_to">Paid to</string>
+    <string name="history_label_date">Date</string>
+    <string name="history_label_note">Note</string>
+    <string name="history_no_note">No note</string>
+    <string name="history_edit_settlement">Edit settlement</string>
+</resources>
