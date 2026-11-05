@@ -1,5 +1,34 @@
 # Verification record
 
+## Group history, search and monthly summary (F17–F21) - November 4, 2026
+
+Branch `feature/history-monthly-summary`, based on merged `main` at `50002a1`.
+`HistoryProjection` merges the coherent ledger into history items (settlements
+titled "Settlement", no category, payer/payee involved), applies case-insensitive
+title/note search, AND-combined type/category/member filters (category excludes
+settlements) and the SCHEMA.md (createdAt, type, recordId) ordering. Monthly
+summaries use immutable localDate, include all five categories and exclude
+settlements. `DefaultHistoryService` follows the balance service's session,
+cancellation and worker-thread protocol. The group page hosts the history section;
+read-only settlement detail and monthly summary screens were added. History and
+summary reload FRESH on resume and after child results.
+
+| Check                                            | Result                                                              |
+|--------------------------------------------------|---------------------------------------------------------------------|
+| App and instrumentation APK builds, strict lint  | PASS                                                                |
+| Java tests                                       | PASS: 75 tests, zero failures/errors (18 new HistoryProjectionTest) |
+| TypeScript contracts and financial validation    | PASS: 8 tests                                                       |
+| Firebase emulator suites                         | PASS: 30 tests                                                      |
+| Full Android instrumentation, API 35 Pixel 9 AVD | PASS: 11 tests                                                      |
+
+Projection tests cover item shape, newest/oldest ordering with cross-collection
+ID ties, each filter, AND combination, null notes, the CONTRACTS.md monthly
+fixture, localDate month boundaries, all-zero categories and overflow. Manual QA
+used three synthetic members with two expenses and one settlement, checking each
+filter, sorting, detail navigation, creator-only settlement editing, rotation,
+and immediate updates after expense create/delete and settlement edit. No server
+code, schema or rules changed.
+
 ## Complete balance demo and recorded settlements - November 4, 2026
 
 Branch `feature/settlements-live-balances`, based on merged `main` at `41d912f`.

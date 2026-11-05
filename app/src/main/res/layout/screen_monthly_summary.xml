@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/feature_root" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp">
+
+        <!-- Required by FeatureScreen.screen() and ProtectedScreen.protect(): keep these IDs. -->
+        <com.google.android.material.button.MaterialButton android:id="@+id/feature_back" style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/identity_back" android:textAllCaps="false" android:letterSpacing="0" />
+        <LinearLayout android:id="@+id/access_gate" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <TextView android:id="@+id/access_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/identity_checking" android:textColor="@color/balance_muted" android:textSize="16sp" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/access_retry" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/identity_refresh" android:textAllCaps="false" android:letterSpacing="0" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/access_logout" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/identity_logout" android:textAllCaps="false" android:letterSpacing="0" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/feature_content" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+            <TextView android:id="@+id/summary_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/summary_title" android:textColor="@color/balance_ink" android:textSize="34sp" android:textStyle="bold" android:layout_marginTop="16dp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/summary_intro" android:textColor="@color/balance_muted" android:textSize="16sp" android:layout_marginTop="8dp" android:layout_marginBottom="16dp" />
+
+            <!-- Month selector: previous | month | next -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                <com.google.android.material.button.MaterialButton android:id="@+id/summary_previous" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/summary_previous" android:textAllCaps="false" android:letterSpacing="0" />
+                <TextView android:id="@+id/summary_month" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="@color/balance_ink" android:textSize="18sp" android:textStyle="bold" android:accessibilityLiveRegion="polite" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/summary_next" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/summary_next" android:textAllCaps="false" android:letterSpacing="0" />
+            </LinearLayout>
+
+            <ProgressBar android:id="@+id/feature_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:indeterminate="true" android:visibility="gone" />
+            <TextView android:id="@+id/feature_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/balance_muted" android:textSize="16sp" android:accessibilityLiveRegion="polite" />
+
+            <LinearLayout android:id="@+id/summary_content" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone" android:layout_marginTop="8dp">
+                <TextView android:id="@+id/summary_empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/summary_empty" android:textColor="@color/balance_muted" android:textSize="16sp" android:visibility="gone" android:paddingTop="8dp" />
+
+                <LinearLayout android:id="@+id/summary_figures" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/summary_count_label" android:textColor="@color/balance_muted" android:textSize="13sp" />
+                    <TextView android:id="@+id/summary_count" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/balance_ink" android:textSize="24sp" android:textStyle="bold" android:layout_marginBottom="16dp" />
+
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/summary_total_label" android:textColor="@color/balance_muted" android:textSize="13sp" />
+                    <TextView android:id="@+id/summary_total" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/balance_ink" android:textSize="30sp" android:textStyle="bold" android:layout_marginBottom="24dp" />
+
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/summary_by_category" android:textColor="@color/balance_ink" android:textSize="22sp" android:layout_marginBottom="8dp" />
+                    <LinearLayout android:id="@+id/summary_categories" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+                </LinearLayout>
+
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/summary_note" android:textColor="@color/balance_muted" android:textSize="13sp" android:layout_marginTop="24dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

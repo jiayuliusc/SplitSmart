@@ -13,7 +13,11 @@ page observes group revisions and reloads automatically after financial changes,
 including when returning from a form. **Refresh balances** remains available.
 Debts stay between the original people.
 
-History/search and monthly summary features remain interfaces only. X06 email verification and other optional features remain outside this scope.
+Each group page has a History section listing all expenses and settlements, newest first,
+with keyword search (titles and notes), filters by type, category and member, and a sort toggle.
+Tap any transaction for its complete details. Monthly summary shows a selected month’s expense
+count, total group spending and per-category totals; settlements are excluded.
+X06 email verification and other optional features remain outside this scope.
 
 Local development uses Firebase emulators under **`demo-splitsmart`**. It needs
 neither a Firebase account nor cloud credentials, `google-services.json`, billing,
