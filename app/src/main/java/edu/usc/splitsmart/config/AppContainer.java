@@ -57,5 +57,5 @@ public final class AppContainer implements FeatureServices {
     @Override public BalanceService balances() { return balances; }
     @Override public SettlementService settlements() { return settlements; }
     @Override public GroupUpdatesService groupUpdates() { return groupUpdates; }
-    @Override public HistoryService history() { return null; }
+    @Override public HistoryService history() { return history; }
 }

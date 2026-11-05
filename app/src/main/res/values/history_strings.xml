@@ -8,4 +8,23 @@
     <string name="history_label_note">Note</string>
     <string name="history_no_note">No note</string>
     <string name="history_edit_settlement">Edit settlement</string>
+
+    <!-- History section on the group page -->
+    <string name="history_heading">History</string>
+    <string name="history_search_hint">Search titles and notes</string>
+    <string name="history_search">Search</string>
+    <string name="history_type_label">Transaction type</string>
+    <string name="history_category_label">Expense category</string>
+    <string name="history_member_label">Group member involved</string>
+    <string name="history_all_types">All transactions</string>
+    <string name="history_type_expenses">Expenses only</string>
+    <string name="history_type_settlements">Settlements only</string>
+    <string name="history_all_categories">All categories</string>
+    <string name="history_all_members">All members</string>
+    <string name="history_sort_newest">Sort: newest first</string>
+    <string name="history_sort_oldest">Sort: oldest first</string>
+    <string name="history_empty">No matching transactions.</string>
+    <string name="history_row_expense">Expense · %1$s</string>
+    <string name="history_row_settlement">Settlement</string>
+    <string name="history_row_detail">%1$s · %2$s</string>
 </resources>

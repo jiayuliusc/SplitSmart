@@ -14,17 +14,23 @@ import edu.usc.splitsmart.domain.model.*;
 import edu.usc.splitsmart.presentation.common.*;
 import edu.usc.splitsmart.presentation.expenses.*;
 import edu.usc.splitsmart.presentation.balances.BalancesScreen;
+import edu.usc.splitsmart.presentation.history.HistorySection;
+import edu.usc.splitsmart.presentation.history.HistoryViewModel;
 import edu.usc.splitsmart.presentation.navigation.NavigationContract;
 
 public final class GroupDetailScreen extends ProtectedScreen {
     private GroupDetailViewModel model;
     private ExpenseViewModel expenseModel;
 
+    private HistoryViewModel historyModel;
+    private HistorySection historySection;
+
     private final ActivityResultLauncher<Intent> expenseLauncher = registerForActivityResult(
         new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() == RESULT_OK) {
                 if (model != null) model.refresh();
                 if (expenseModel != null) expenseModel.refreshLedger();
+                if (historyModel != null) historyModel.refresh();
             }
         });
 
@@ -38,6 +44,11 @@ public final class GroupDetailScreen extends ProtectedScreen {
             saved -> new GroupDetailViewModel(saved, services().groups(), id))).get(GroupDetailViewModel.class);
         expenseModel = new ViewModelProvider(this, new FeatureFactory(this, getIntent().getExtras(),
             saved -> new ExpenseViewModel(saved, services().expenses(), services().groups(), id))).get(ExpenseViewModel.class);
+
+        historyModel = new ViewModelProvider(this, new FeatureFactory(this, getIntent().getExtras(),
+            saved -> new HistoryViewModel(saved, services().history(), id))).get(HistoryViewModel.class);
+        bindErrors(historyModel);
+        historySection = new HistorySection(this, historyModel, id, expenseLauncher::launch);
 
         bind(model, R.id.groups_refresh, R.id.groups_save, R.id.groups_add, R.id.groups_delete, R.id.groups_balances);
         bindErrors(expenseModel);
@@ -67,6 +78,7 @@ public final class GroupDetailScreen extends ProtectedScreen {
                 ((TextView) row.findViewById(R.id.row_name)).setText(member.name());
                 ((TextView) row.findViewById(R.id.row_detail)).setText(member.email()); rows.addView(row);
             }
+            historySection.setMembers(members);
         });
 
         expenseModel.ledger.observe(this, ledger -> {
@@ -114,11 +126,13 @@ public final class GroupDetailScreen extends ProtectedScreen {
         expenseModel.deleted.observe(this, result -> {
             if (result != null) {
                 expenseModel.refreshLedger();
+                if (historyModel != null) historyModel.refresh();
             }
         });
         expenseModel.created.observe(this, result -> {
             if (result != null) {
                 expenseModel.refreshLedger();
+                if (historyModel != null) historyModel.refresh();
             }
         });
 
@@ -137,6 +151,7 @@ public final class GroupDetailScreen extends ProtectedScreen {
         findViewById(R.id.groups_refresh).setOnClickListener(v -> {
             model.refresh();
             expenseModel.refreshLedger();
+            historyModel.refresh();
         });
         findViewById(R.id.groups_save).setOnClickListener(v -> model.update(input(R.id.groups_name), input(R.id.groups_description)));
         findViewById(R.id.groups_add).setOnClickListener(v -> model.add(input(R.id.groups_email)));
@@ -155,9 +170,17 @@ public final class GroupDetailScreen extends ProtectedScreen {
             expenseModel.loadGroup();
             expenseModel.refreshLedger();
         }
+        if (historyModel != null) {
+            historyModel.activate(user.uid());
+        }
     }
     @Override protected void onAccessLost() {
         if (model != null) { model.cancelOperations(); model.group.setValue(null); model.members.setValue(java.util.List.of()); }
         if (expenseModel != null) { expenseModel.cancelOperations(); expenseModel.ledger.setValue(null); }
+        if (historyModel != null) { historyModel.clear(); }
+    }
+    @Override protected void onPause() {
+        super.onPause();
+        if (historyModel != null) historyModel.pause();
     }
 }
