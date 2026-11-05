@@ -51,7 +51,10 @@ public final class CreateExpenseScreen extends ProtectedScreen {
         });
         ((Spinner) findViewById(R.id.expense_payer_spinner)).setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
-                if (!rendering && position >= 0 && position < memberProfiles.size()) model.editDraft("payer", memberProfiles.get(position).uid());
+                if (!rendering && position >= 0 && position < memberProfiles.size()) {
+                    model.editDraft("payer", memberProfiles.get(position).uid());
+                    lockControls();
+                }
             }
             @Override public void onNothingSelected(AdapterView<?> parent) { }
         });
@@ -133,6 +136,7 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             box.setText(member.name()); box.setTag(member.uid()); box.setChecked(selected.contains(member.uid()));
             box.setMinHeight((int) (48 * getResources().getDisplayMetrics().density));
             box.setOnCheckedChangeListener((button, checked) -> {
+                if (rendering) return;
                 List<String> ids = new ArrayList<>();
                 for (CheckBox item : participantBoxes) if (item.isChecked()) ids.add((String) item.getTag());
                 model.editDraft("participants", String.join(",", ids));
@@ -156,7 +160,14 @@ public final class CreateExpenseScreen extends ProtectedScreen {
         findViewById(R.id.expense_payer_spinner).setEnabled(!locked && ready);
         findViewById(R.id.expense_category_spinner).setEnabled(!locked && ready);
         findViewById(R.id.expense_amount).setEnabled(!locked && ready && !(original != null && original.splitMethod() == SplitMethod.EXACT));
-        for (CheckBox box : participantBoxes) box.setEnabled(!locked && ready && !nonEqual);
+        Spinner payer = findViewById(R.id.expense_payer_spinner);
+        int payerIndex = payer.getSelectedItemPosition();
+        String payerId = payerIndex >= 0 && payerIndex < memberProfiles.size() ? memberProfiles.get(payerIndex).uid() : null;
+        for (CheckBox box : participantBoxes) {
+            boolean isPayer = box.getTag().equals(payerId);
+            if (isPayer && !box.isChecked()) box.setChecked(true);
+            box.setEnabled(!locked && ready && !nonEqual && !isPayer);
+        }
         findViewById(R.id.expense_submit).setEnabled(!locked && ready && model.ledger.getValue() != null);
     }
 
