@@ -2,71 +2,58 @@ package edu.usc.splitsmart.presentation.expenses;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.InputType;
+import android.text.TextWatcher;
+import android.view.View;
 import android.widget.*;
 import androidx.lifecycle.ViewModelProvider;
+import java.math.BigDecimal;
 import java.util.*;
 import edu.usc.splitsmart.R;
 import edu.usc.splitsmart.domain.model.*;
 import edu.usc.splitsmart.presentation.common.*;
 import edu.usc.splitsmart.presentation.navigation.NavigationContract;
 
+/** Expense editor with local, pre-save previews for equal, exact and percentage splits. */
 public final class CreateExpenseScreen extends ProtectedScreen {
     private ExpenseViewModel model;
     private final List<MemberProfile> memberProfiles = new ArrayList<>();
     private final List<CheckBox> participantBoxes = new ArrayList<>();
+    private final Map<String, EditText> splitEditors = new HashMap<>();
+    private boolean rendering;
 
-    @Override
-    protected void onCreate(Bundle state) {
+    @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         screen(R.layout.screen_expense_create);
         String groupId = getIntent().getStringExtra(NavigationContract.GROUP_ID);
         if (groupId == null || !groupId.matches("[A-Za-z0-9_-]{1,128}")) {
             text(R.id.access_status, getString(R.string.groups_missing_scope));
-            show(R.id.access_retry, false);
-            show(R.id.access_logout, false);
-            return;
+            show(R.id.access_retry, false); show(R.id.access_logout, false); return;
         }
 
         model = new ViewModelProvider(this, new FeatureFactory(this, getIntent().getExtras(),
-            saved -> new ExpenseViewModel(saved, services().expenses(), services().groups(), groupId))).get(ExpenseViewModel.class);
-
+            saved -> new ExpenseViewModel(saved, services().expenses(), services().groups(), groupId)))
+            .get(ExpenseViewModel.class);
         bind(model, R.id.expense_submit);
+        restoreTextDrafts();
+        setupCategorySpinner();
+        setupSplitMethodSpinner();
+        watch(R.id.expense_title, this::requestPreview);
+        watch(R.id.expense_amount, this::requestPreview);
 
-        // Setup Category Spinner
-        Spinner categorySpinner = findViewById(R.id.expense_category_spinner);
-        ArrayAdapter<Category> catAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, Category.values());
-        catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        categorySpinner.setAdapter(catAdapter);
-
-        model.members.observe(this, members -> {
-            memberProfiles.clear();
-            memberProfiles.addAll(members);
-
-            // Populate Payer Spinner
-            Spinner payerSpinner = findViewById(R.id.expense_payer_spinner);
-            List<String> names = new ArrayList<>();
-            for (MemberProfile m : members) names.add(m.name());
-            ArrayAdapter<String> payerAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
-            payerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            payerSpinner.setAdapter(payerAdapter);
-
-            // Populate Participants Checkboxes
-            LinearLayout container = findViewById(R.id.expense_participants_container);
-            container.removeAllViews();
-            participantBoxes.clear();
-            for (MemberProfile m : members) {
-                CheckBox box = new CheckBox(this);
-                box.setText(m.name());
-                box.setTag(m.uid());
-                box.setChecked(true);
-                participantBoxes.add(box);
-                container.addView(box);
-            }
+        model.members.observe(this, this::renderMembers);
+        model.splitPreview.observe(this, this::renderPreview);
+        model.splitValidation.observe(this, message -> {
+            String value = message == null ? "" : message;
+            text(R.id.expense_split_error, value);
+            show(R.id.expense_split_error, !value.isEmpty());
         });
+        model.splitValid.observe(this, valid -> updateSubmitState());
+        model.busy.observe(this, busy -> updateSubmitState());
 
         findViewById(R.id.expense_submit).setOnClickListener(v -> submit());
         findViewById(R.id.identity_retry).setOnClickListener(v -> model.retry());
-
         model.created.observe(this, result -> {
             if (result == null) return;
             setResult(RESULT_OK, new Intent()
@@ -75,42 +62,247 @@ public final class CreateExpenseScreen extends ProtectedScreen {
                 .putExtra(NavigationContract.RESULT_GROUP_REVISION, result.groupRevision().longValue()));
             finish();
         });
-
+        updateSubmitState();
         protect();
     }
 
+    private void restoreTextDrafts() {
+        text(R.id.expense_title, model.draft("title", ""));
+        text(R.id.expense_amount, model.draft("amount", ""));
+        text(R.id.expense_note, model.draft("note", ""));
+        bindDraft(model, R.id.expense_title, "title");
+        bindDraft(model, R.id.expense_amount, "amount");
+        bindDraft(model, R.id.expense_note, "note");
+    }
+
+    private void setupCategorySpinner() {
+        Spinner spinner = findViewById(R.id.expense_category_spinner);
+        ArrayAdapter<Category> adapter = new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item, Category.values());
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        try { spinner.setSelection(Category.valueOf(model.draft("category", Category.values()[0].name())).ordinal()); }
+        catch (IllegalArgumentException ignored) { spinner.setSelection(0); }
+        spinner.setOnItemSelectedListener(changes(() -> {
+            Category category = (Category) spinner.getSelectedItem();
+            if (category != null) model.editDraft("category", category.name());
+            requestPreview();
+        }));
+    }
+
+    private void setupSplitMethodSpinner() {
+        Spinner spinner = findViewById(R.id.expense_split_method_spinner);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+            List.of(getString(R.string.split_equal), getString(R.string.split_exact),
+                getString(R.string.split_percentage)));
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        try { spinner.setSelection(SplitMethod.valueOf(model.draft("splitMethod", "EQUAL")).ordinal()); }
+        catch (IllegalArgumentException ignored) { spinner.setSelection(0); }
+        spinner.setOnItemSelectedListener(changes(() -> {
+            model.editDraft("splitMethod", splitMethod().name());
+            rebuildSplitEditors(); requestPreview();
+        }));
+    }
+
+    private void renderMembers(List<MemberProfile> members) {
+        rendering = true;
+        try {
+            memberProfiles.clear(); memberProfiles.addAll(members);
+            renderPayers(members); renderParticipantChecks(members); rebuildSplitEditors();
+        } finally { rendering = false; }
+        requestPreview();
+    }
+
+    private void renderPayers(List<MemberProfile> members) {
+        Spinner spinner = findViewById(R.id.expense_payer_spinner);
+        List<String> names = new ArrayList<>();
+        for (MemberProfile member : members) names.add(member.name());
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        String savedPayer = model.draft("payer", "");
+        for (int i = 0; i < members.size(); i++) if (members.get(i).uid().equals(savedPayer)) spinner.setSelection(i);
+        spinner.setOnItemSelectedListener(changes(() -> {
+            String payer = payerId();
+            if (payer != null) model.editDraft("payer", payer);
+            requestPreview();
+        }));
+    }
+
+    private void renderParticipantChecks(List<MemberProfile> members) {
+        LinearLayout container = findViewById(R.id.expense_participants_container);
+        container.removeAllViews(); participantBoxes.clear();
+        String saved = model.draft("participants", "__ALL__");
+        Set<String> selected = "__ALL__".equals(saved) ? null
+            : "__NONE__".equals(saved) ? Set.of()
+              : new HashSet<>(Arrays.asList(saved.split(",", -1)));
+        for (MemberProfile member : members) {
+            CheckBox box = new CheckBox(this);
+            box.setText(member.name()); box.setTag(member.uid());
+            box.setChecked(selected == null || selected.contains(member.uid()));
+            box.setOnCheckedChangeListener((button, checked) -> {
+                if (rendering) return;
+                persistParticipants(); rebuildSplitEditors(); requestPreview();
+            });
+            participantBoxes.add(box); container.addView(box);
+        }
+        persistParticipants();
+    }
+
+    private void rebuildSplitEditors() {
+        LinearLayout container = findViewById(R.id.expense_split_inputs_container);
+        container.removeAllViews(); splitEditors.clear();
+        SplitMethod method = splitMethod();
+        show(R.id.expense_split_inputs_label, method != SplitMethod.EQUAL);
+        show(R.id.expense_split_inputs_container, method != SplitMethod.EQUAL);
+        if (method == SplitMethod.EQUAL) return;
+
+        for (String participantId : selectedParticipantIds()) {
+            MemberProfile member = member(participantId);
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            TextView name = new TextView(this);
+            name.setText(member == null ? participantId : member.name()); name.setTextSize(16);
+            row.addView(name, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            EditText editor = new EditText(this);
+            editor.setSingleLine(true);
+            editor.setHint(method == SplitMethod.EXACT
+                ? getString(R.string.split_amount_hint) : getString(R.string.split_percentage_hint));
+            editor.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+            String key = splitDraftKey(method, participantId);
+            editor.setText(model.draft(key, ""));
+            editor.setContentDescription(getString(R.string.split_input_content_description,
+                member == null ? participantId : member.name(),
+                method == SplitMethod.EXACT ? getString(R.string.split_exact) : getString(R.string.split_percentage)));
+            editor.addTextChangedListener(new SimpleWatcher() {
+                @Override public void afterTextChanged(Editable value) {
+                    model.editDraft(key, value.toString()); requestPreview();
+                }
+            });
+            row.addView(editor, new LinearLayout.LayoutParams(dp(132), LinearLayout.LayoutParams.WRAP_CONTENT));
+            splitEditors.put(participantId, editor); container.addView(row);
+        }
+    }
+
+    private void requestPreview() {
+        if (rendering || model == null) return;
+        try {
+            model.previewSplit(input(R.id.expense_title), input(R.id.expense_amount), payerId(),
+                selectedParticipantIds(), splitMethod(), splitInputs(),
+                (Category) ((Spinner) findViewById(R.id.expense_category_spinner)).getSelectedItem(),
+                input(R.id.expense_note));
+        } catch (IllegalArgumentException error) { model.clearSplitPreview(error.getMessage()); }
+    }
+
     private void submit() {
-        Spinner payerSpinner = findViewById(R.id.expense_payer_spinner);
-        Spinner categorySpinner = findViewById(R.id.expense_category_spinner);
+        if (!Boolean.TRUE.equals(model.splitValid.getValue())) { requestPreview(); return; }
+        try {
+            model.create(input(R.id.expense_title), input(R.id.expense_amount), payerId(),
+                selectedParticipantIds(), splitMethod(), splitInputs(),
+                (Category) ((Spinner) findViewById(R.id.expense_category_spinner)).getSelectedItem(),
+                input(R.id.expense_note));
+        } catch (IllegalArgumentException error) { model.clearSplitPreview(error.getMessage()); }
+    }
 
-        int payerIdx = payerSpinner.getSelectedItemPosition();
-        if (payerIdx < 0 || payerIdx >= memberProfiles.size()) return;
-        String payerId = memberProfiles.get(payerIdx).uid();
-
-        Category cat = (Category) categorySpinner.getSelectedItem();
-
-        List<String> selectedParticipants = new ArrayList<>();
-        for (CheckBox box : participantBoxes) {
-            if (box.isChecked()) {
-                selectedParticipants.add((String) box.getTag());
+    private List<SplitInput> splitInputs() {
+        SplitMethod method = splitMethod();
+        if (method == SplitMethod.EQUAL) return List.of();
+        List<SplitInput> result = new ArrayList<>();
+        for (String participantId : selectedParticipantIds()) {
+            EditText editor = splitEditors.get(participantId);
+            String raw = editor == null ? "" : editor.getText().toString();
+            if (raw.trim().isEmpty()) throw new IllegalArgumentException(method == SplitMethod.EXACT
+                ? getString(R.string.split_enter_all_amounts) : getString(R.string.split_enter_all_percentages));
+            if (method == SplitMethod.EXACT) {
+                try { result.add(new SplitInput(participantId, ExpenseViewModel.parseDollarsToCents(raw), null)); }
+                catch (Exception error) { throw new IllegalArgumentException(getString(R.string.split_invalid_amount)); }
+            } else {
+                try { result.add(new SplitInput(participantId, null, ExpenseViewModel.parsePercentageToBasisPoints(raw))); }
+                catch (Exception error) { throw new IllegalArgumentException(getString(R.string.split_invalid_percentage)); }
             }
         }
-
-        model.create(input(R.id.expense_title), input(R.id.expense_amount), payerId, selectedParticipants, cat, input(R.id.expense_note));
+        return result;
     }
 
-    @Override
-    protected void onAuthorized(User user) {
-        if (model != null) {
-            model.bindUser(user.uid());
-            model.loadGroup();
+    private void renderPreview(List<ExpenseShare> shares) {
+        LinearLayout container = findViewById(R.id.expense_split_preview_container);
+        container.removeAllViews();
+        for (ExpenseShare share : shares) {
+            TextView row = new TextView(this);
+            MemberProfile member = member(share.participantId());
+            String name = member == null ? share.participantId() : member.name();
+            String amount = getString(R.string.split_currency_amount,
+                BigDecimal.valueOf(share.amountCents(), 2).toPlainString());
+            String suffix = share.basisPoints() == null ? "" : getString(R.string.split_percentage_suffix,
+                BigDecimal.valueOf(share.basisPoints(), 2).stripTrailingZeros().toPlainString());
+            row.setText(getString(R.string.split_preview_row, name, amount, suffix));
+            row.setTextSize(16); row.setPadding(0, dp(4), 0, dp(4));
+            container.addView(row);
         }
+        show(R.id.expense_split_preview_label, !shares.isEmpty());
+        show(R.id.expense_split_preview_container, !shares.isEmpty());
+        updateSubmitState();
     }
 
-    @Override
-    protected void onAccessLost() {
-        if (model != null) {
-            model.cancelOperations();
-        }
+    private void updateSubmitState() {
+        View submit = findViewById(R.id.expense_submit);
+        if (submit != null && model != null) submit.setEnabled(Boolean.TRUE.equals(model.splitValid.getValue())
+            && !model.isBusy() && !model.pending());
     }
+
+    private SplitMethod splitMethod() {
+        int position = ((Spinner) findViewById(R.id.expense_split_method_spinner)).getSelectedItemPosition();
+        return position >= 0 && position < SplitMethod.values().length ? SplitMethod.values()[position] : SplitMethod.EQUAL;
+    }
+
+    private String payerId() {
+        int position = ((Spinner) findViewById(R.id.expense_payer_spinner)).getSelectedItemPosition();
+        return position >= 0 && position < memberProfiles.size() ? memberProfiles.get(position).uid() : null;
+    }
+
+    private List<String> selectedParticipantIds() {
+        List<String> result = new ArrayList<>();
+        for (CheckBox box : participantBoxes) if (box.isChecked()) result.add((String) box.getTag());
+        return result;
+    }
+
+    private void persistParticipants() {
+        if (model == null) return;
+        List<String> selected = selectedParticipantIds();
+        model.editDraft("participants", selected.isEmpty() ? "__NONE__" : String.join(",", selected));
+    }
+    private MemberProfile member(String id) {
+        for (MemberProfile member : memberProfiles) if (member.uid().equals(id)) return member;
+        return null;
+    }
+    private String splitDraftKey(SplitMethod method, String id) { return "split:" + method.name() + ":" + id; }
+    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+
+    private void watch(int id, Runnable action) {
+        ((EditText) findViewById(id)).addTextChangedListener(new SimpleWatcher() {
+            @Override public void afterTextChanged(Editable value) { action.run(); }
+        });
+    }
+
+    private AdapterView.OnItemSelectedListener changes(Runnable action) {
+        return new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (!rendering) action.run();
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { if (!rendering) action.run(); }
+        };
+    }
+
+    private abstract static class SimpleWatcher implements TextWatcher {
+        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+        @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+    }
+
+    @Override protected void onAuthorized(User user) {
+        if (model != null) { model.bindUser(user.uid()); model.loadGroup(); }
+    }
+    @Override protected void onAccessLost() { if (model != null) model.cancelOperations(); }
 }

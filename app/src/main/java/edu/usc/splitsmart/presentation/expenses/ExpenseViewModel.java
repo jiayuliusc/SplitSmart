@@ -20,6 +20,10 @@ public final class ExpenseViewModel extends FeatureViewModel {
     public final MutableLiveData<Expense> expense = new MutableLiveData<>();
     public final MutableLiveData<MutationResult<Expense>> created = new MutableLiveData<>();
     public final MutableLiveData<MutationResult<DeletedRecord>> deleted = new MutableLiveData<>();
+    public final MutableLiveData<List<ExpenseShare>> splitPreview = new MutableLiveData<>(List.of());
+    public final MutableLiveData<String> splitValidation = new MutableLiveData<>("");
+    public final MutableLiveData<Boolean> splitValid = new MutableLiveData<>(false);
+    private int previewGeneration;
 
     public ExpenseViewModel(SavedStateHandle state, ExpenseService expenses, GroupService groups, String groupId) {
         super(state);
@@ -83,25 +87,91 @@ public final class ExpenseViewModel extends FeatureViewModel {
         return centsBd.longValueExact();
     }
 
-    public void create(String title, String amountStr, String payerId, List<String> participantIds, Category category, String note) {
-        if (isBusy() || pending() || group.getValue() == null) return;
-        long amountCents;
+    public static int parsePercentageToBasisPoints(String input) throws IllegalArgumentException {
+        if (input == null || input.trim().isEmpty()) throw new IllegalArgumentException("Enter a percentage.");
+        BigDecimal percent = new BigDecimal(input.trim());
+        if (percent.scale() > 2) throw new IllegalArgumentException("Maximum 2 decimal places.");
+        return percent.movePointRight(2).intValueExact();
+    }
+
+    public void clearSplitPreview(String validationMessage) {
+        ++previewGeneration;
+        splitPreview.setValue(List.of());
+        splitValidation.setValue(validationMessage == null ? "" : validationMessage);
+        splitValid.setValue(false);
+    }
+
+    public void previewSplit(String title, String amountStr, String payerId,
+                             List<String> participantIds, SplitMethod splitMethod,
+                             List<SplitInput> splitInputs, Category category, String note) {
+        final int request = ++previewGeneration;
+        final ExpenseDraft draft;
         try {
-            amountCents = parseDollarsToCents(amountStr);
-        } catch (Exception e) {
-            failed(new AppError(ErrorCode.VALIDATION, "Enter a valid dollar amount (e.g. 25.50).", "amountCents", false));
+            draft = draft(title, amountStr, payerId, participantIds, splitMethod, splitInputs, category, note);
+        } catch (IllegalArgumentException error) {
+            clearSplitPreview(error.getMessage());
             return;
         }
-        String noteVal = note != null && !note.trim().isEmpty() ? note.trim() : null;
-        ExpenseDraft draft = new ExpenseDraft(title, amountCents, payerId, participantIds, SplitMethod.EQUAL, category, noteVal, List.of());
+        splitValid.setValue(false);
+        splitValidation.setValue("");
+        track(expenses.previewSplit(draft, new Callback<>() {
+            @Override public void onSuccess(List<ExpenseShare> shares) {
+                if (request != previewGeneration) return;
+                splitPreview.setValue(shares);
+                splitValidation.setValue("");
+                splitValid.setValue(true);
+            }
+            @Override public void onError(AppError error) {
+                if (request != previewGeneration) return;
+                splitPreview.setValue(List.of());
+                splitValidation.setValue(error.message());
+                splitValid.setValue(false);
+            }
+        }));
+    }
+
+    public void create(String title, String amountStr, String payerId, List<String> participantIds,
+                       SplitMethod splitMethod, List<SplitInput> splitInputs, Category category, String note) {
+        if (isBusy() || pending() || group.getValue() == null) return;
+        ExpenseDraft draft;
+        try {
+            draft = draft(title, amountStr, payerId, participantIds, splitMethod, splitInputs, category, note);
+        } catch (Exception e) {
+            failed(new AppError(ErrorCode.VALIDATION, e.getMessage(), "splitInputs", false));
+            return;
+        }
         String key = intent("create", Long.toString(group.getValue().revision()), title);
         retryCreate(draft, key);
     }
 
+    private static ExpenseDraft draft(String title, String amountStr, String payerId,
+                                      List<String> participantIds, SplitMethod splitMethod,
+                                      List<SplitInput> splitInputs, Category category, String note) {
+        if (payerId == null || splitMethod == null || category == null
+            || participantIds == null || splitInputs == null) {
+            throw new IllegalArgumentException("Complete the payer, participants, split method, and category.");
+        }
+        final long amountCents;
+        try {
+            amountCents = parseDollarsToCents(amountStr);
+        } catch (Exception error) {
+            throw new IllegalArgumentException("Enter a valid dollar amount (e.g. 25.50).");
+        }
+        String noteValue = note != null && !note.trim().isEmpty() ? note.trim() : null;
+        return new ExpenseDraft(title == null ? "" : title, amountCents, payerId,
+            participantIds, splitMethod, category, noteValue, splitInputs);
+    }
+
     private void retryCreate(ExpenseDraft draft, String key) {
+        Group currentGroup = group.getValue();
+        if (currentGroup == null) {
+            failed(new AppError(ErrorCode.CONFLICT,
+                "The group changed. Refresh before recording this expense.", "groupId", false));
+            return;
+        }
         start();
         LocalDate now = LocalDate.now();
-        track(expenses.createExpense(groupId, group.getValue().revision(), draft, now, key, new Callback<>() {
+        track(expenses.createExpense(groupId, currentGroup.revision(), draft, now, key, new Callback<>() {
             @Override public void onSuccess(MutationResult<Expense> result) {
                 updateGroupRevision(result.groupRevision());
                 done("Expense recorded successfully.");
@@ -135,5 +205,10 @@ public final class ExpenseViewModel extends FeatureViewModel {
         if ("delete".equals(operation())) {
             retryDelete(values().get(1), requestId());
         }
+    }
+
+    @Override public void cancelOperations() {
+        ++previewGeneration;
+        super.cancelOperations();
     }
 }

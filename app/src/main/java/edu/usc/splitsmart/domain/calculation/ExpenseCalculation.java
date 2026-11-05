@@ -1,5 +1,6 @@
 package edu.usc.splitsmart.domain.calculation;
 
+import java.math.BigInteger;
 import java.util.*;
 import edu.usc.splitsmart.domain.model.*;
 import edu.usc.splitsmart.util.ImmutableCollections;
@@ -11,50 +12,77 @@ public final class ExpenseCalculation {
         Objects.requireNonNull(draft, "draft");
         List<String> sorted = new ArrayList<>(draft.participantIds());
         Collections.sort(sorted);
+        if (sorted.size() < 2 || new HashSet<>(sorted).size() != sorted.size()) {
+            throw new IllegalArgumentException("At least two distinct participants are required.");
+        }
         long total = draft.amountCents();
+        if (total <= 0) throw new IllegalArgumentException("Expense total must be positive.");
+        Map<String, SplitInput> inputs = indexedInputs(draft, sorted);
 
-        if (draft.splitMethod() == SplitMethod.EXACT && !draft.splitInputs().isEmpty()) {
+        if (draft.splitMethod() == SplitMethod.EXACT) {
             List<ExpenseShare> shares = new ArrayList<>();
+            BigInteger sum = BigInteger.ZERO;
             for (String pId : sorted) {
-                SplitInput input = draft.splitInputs().stream()
-                    .filter(i -> pId.equals(i.participantId()))
-                    .findFirst()
-                    .orElse(null);
-                long amt = input != null && input.amountCents() != null ? input.amountCents() : 0L;
+                SplitInput input = inputs.get(pId);
+                if (input == null || input.amountCents() == null || input.basisPoints() != null
+                    || input.amountCents() < 0) {
+                    throw new IllegalArgumentException("Missing or invalid exact split for " + pId + ".");
+                }
+                long amt = input.amountCents();
+                sum = sum.add(BigInteger.valueOf(amt));
                 shares.add(new ExpenseShare(pId, amt, null));
+            }
+            if (!sum.equals(BigInteger.valueOf(total))) {
+                throw new IllegalArgumentException("Exact split amounts must equal the expense total.");
             }
             return ImmutableCollections.list(shares);
         }
 
-        if (draft.splitMethod() == SplitMethod.PERCENTAGE && !draft.splitInputs().isEmpty()) {
+        if (draft.splitMethod() == SplitMethod.PERCENTAGE) {
             List<ExpenseShare> shares = new ArrayList<>();
-            long sumAllocated = 0L;
-            List<Long> baseAmts = new ArrayList<>();
+            BigInteger totalValue = BigInteger.valueOf(total);
+            BigInteger sumAllocated = BigInteger.ZERO;
+            List<BigInteger> baseAmts = new ArrayList<>();
+            List<Integer> basisPoints = new ArrayList<>();
+            int basisPointTotal = 0;
             for (String pId : sorted) {
-                SplitInput input = draft.splitInputs().stream()
-                    .filter(i -> pId.equals(i.participantId()))
-                    .findFirst()
-                    .orElse(null);
-                int bp = input != null && input.basisPoints() != null ? input.basisPoints() : 0;
-                long amt = (total * bp) / 10000L;
-                sumAllocated += amt;
+                SplitInput input = inputs.get(pId);
+                if (input == null || input.basisPoints() == null || input.amountCents() != null
+                    || input.basisPoints() < 0 || input.basisPoints() > 10000) {
+                    throw new IllegalArgumentException("Missing or invalid percentage split for " + pId + ".");
+                }
+                int bp = input.basisPoints();
+                basisPointTotal += bp;
+                BigInteger amt = totalValue.multiply(BigInteger.valueOf(bp)).divide(BigInteger.valueOf(10000));
+                sumAllocated = sumAllocated.add(amt);
                 baseAmts.add(amt);
+                basisPoints.add(bp);
             }
-            int remainder = (int) (total - sumAllocated);
+            if (basisPointTotal != 10000) {
+                throw new IllegalArgumentException("Percentages must total exactly 100%.");
+            }
+            BigInteger remainderValue = totalValue.subtract(sumAllocated);
+            if (remainderValue.signum() < 0
+                || remainderValue.compareTo(BigInteger.valueOf(sorted.size())) >= 0) {
+                throw new ArithmeticException("Invalid percentage rounding remainder.");
+            }
+            int remainder = remainderValue.intValue();
             for (int i = 0; i < sorted.size(); i++) {
                 String pId = sorted.get(i);
-                SplitInput input = draft.splitInputs().stream()
-                    .filter(in -> pId.equals(in.participantId()))
-                    .findFirst()
-                    .orElse(null);
-                Integer bp = input != null ? input.basisPoints() : null;
-                long extra = i < remainder ? 1L : 0L;
-                shares.add(new ExpenseShare(pId, baseAmts.get(i) + extra, bp));
+                int bp = basisPoints.get(i);
+                BigInteger amount = baseAmts.get(i).add(i < remainder ? BigInteger.ONE : BigInteger.ZERO);
+                if (amount.signum() < 0 || amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                    throw new ArithmeticException("Calculated share exceeds the supported range.");
+                }
+                shares.add(new ExpenseShare(pId, amount.longValue(), bp));
             }
             return ImmutableCollections.list(shares);
         }
 
         // Default: EQUAL
+        if (draft.splitMethod() != SplitMethod.EQUAL || !draft.splitInputs().isEmpty()) {
+            throw new IllegalArgumentException("Invalid equal split inputs.");
+        }
         int count = sorted.size();
         long base = total / count;
         int remainder = (int) (total % count);
@@ -64,5 +92,16 @@ public final class ExpenseCalculation {
             shares.add(new ExpenseShare(sorted.get(i), amt, null));
         }
         return ImmutableCollections.list(shares);
+    }
+
+    private static Map<String, SplitInput> indexedInputs(ExpenseDraft draft, List<String> participants) {
+        Map<String, SplitInput> result = new HashMap<>();
+        Set<String> selected = new HashSet<>(participants);
+        for (SplitInput input : draft.splitInputs()) {
+            if (!selected.contains(input.participantId()) || result.put(input.participantId(), input) != null) {
+                throw new IllegalArgumentException("Duplicate or unselected split participant.");
+            }
+        }
+        return result;
     }
 }
