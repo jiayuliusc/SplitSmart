@@ -240,8 +240,9 @@ shares, stored timestamps or currency. A groupId scopes an operation, not author
 email. `updateProfileName` takes name. Group create/update take a full GroupDraft.
 `addGroupMember.email` is trimmed, lowercase and an exact `usc.edu` domain.
 Member responses contain authorized group members only, never a user directory.
-The backend derives new group owner, expense creator and settlement creator/payer
-from verified authentication. It must independently enforce membership, ownership,
+The backend derives new group owner, expense creator and settlement creator
+from verified authentication; a settlement payer is the optional `payerId` or the actor,
+and the actor must be the payer or payee. It must independently enforce membership, ownership,
 creator rights, profile readiness and every authoritative validation rule.
 
 All existing-group mutations require `groupId`, `expectedRevision`, and a requestId.
@@ -331,8 +332,8 @@ prove a financial handler; those implementations need contention and retry tests
    and the corresponding settlements query. No limit(500), pagination outside the
    transaction, independent repository reads, cached data, or editable aggregate
    counters. These snapshots plus group membership/status/revision and the actor's
-   profile are authoritative. Select the existing record from these snapshots for
-   edit/delete and validate its immutable creator/payer/date metadata.
+   profile are authoritative. Select the existing record from these snapshots for edit/
+   delete and edit/delete and validate its immutable creator/payer/payee/date metadata.
 5. Compute/validate the proposed resulting ledger with exact arithmetic. Backend
    recalculates expense shares, validates all references, and enforces positive
    settlement amount <= authoritative pairwise debt. For a settlement edit, remove

@@ -43,9 +43,9 @@ public final class SettlementStateTest {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             var harness = new Harness(); var state = new SavedStateHandle();
             var model = new SettlementViewModel(state,harness.settlements,harness.groups,"g",null);
-            model.bindUser("b"); model.load(); model.save("a","4.00","First");
+            model.bindUser("b"); model.load(); model.save("b","a","4.00","First");
             harness.callback.onError(new AppError(ErrorCode.UNAVAILABLE,"Unavailable",null,true));
-            assertTrue(model.pending()); model.save("a","5.00","Modified"); assertEquals(1,harness.writes.size());
+            assertTrue(model.pending()); model.save("b","a","5.00","Modified"); assertEquals(1,harness.writes.size());
             var restored = new SettlementViewModel(state,harness.settlements,harness.groups,"g",null);
             restored.bindUser("b"); restored.retry();
             assertEquals(harness.writes.get(0),harness.writes.get(1));
@@ -54,11 +54,11 @@ public final class SettlementStateTest {
     @Test public void conflictRefreshRequiresExplicitSaveAndCreatesNewIntent() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             var harness = new Harness(); var model = new SettlementViewModel(new SavedStateHandle(),harness.settlements,harness.groups,"g",null);
-            model.bindUser("b"); model.load(); model.editDraft("amount","4.00"); model.save("a","4.00",null);
+            model.bindUser("b"); model.load(); model.editDraft("amount","4.00"); model.save("b","a","4.00",null);
             harness.callback.onError(new AppError(ErrorCode.CONFLICT,"Conflict",null,false));
             assertFalse(model.pending()); assertEquals(2,harness.reads); assertEquals(1,harness.writes.size());
             assertEquals("4.00",model.draft("amount",""));
-            model.save("a","4.00",null); assertEquals(2,harness.writes.size());
+            model.save("b","a","4.00",null); assertEquals(2,harness.writes.size());
             assertNotEquals(harness.writes.get(0).get(4),harness.writes.get(1).get(4));
             assertEquals(2L,harness.writes.get(1).get(1));
         });

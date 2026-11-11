@@ -60,8 +60,19 @@ export async function handleExpenseCall(db: Firestore, _auth: Auth, actor: {uid:
         expenses.push(value);
       } else {
         const input = draft as ReturnType<typeof validate.settlementDraft>;
-        const payerId = existing?.payerId ?? actor.uid;
-        requireThat(input.payeeId !== payerId && ledger.memberIds.includes(input.payeeId), "VALIDATION", "Choose another group member.", "payeeId");
+        const prior = existing as Settlement | undefined;   // this branch only handles settlements
+        const payerId = prior ? prior.payerId : (input.payerId ?? actor.uid);
+        if (prior) {
+          // Payer and recipient are fixed once the settlement exists.
+          requireThat(input.payeeId === prior.payeeId && (input.payerId === undefined || input.payerId === prior.payerId),
+            "VALIDATION", "The payer and recipient of a settlement cannot be changed.", "payeeId");
+        } else {
+          // Either side may record the payment, but the creator must be one of the two parties.
+          requireThat(actor.uid === payerId || actor.uid === input.payeeId,
+            "VALIDATION", "You must be the payer or the recipient of this settlement.", "payerId");
+        }
+        requireThat(input.payeeId !== payerId && ledger.memberIds.includes(payerId) && ledger.memberIds.includes(input.payeeId),
+          "VALIDATION", "Choose another group member.", "payeeId");
         const pairBalances = balances({...ledger, expenses, settlements}, false);
         const debt = -pairBalances.get(payerId)!.get(input.payeeId)!;
         requireThat(BigInt(input.amountCents) <= debt, "VALIDATION", "Payment exceeds the current debt to this member.", "amountCents");

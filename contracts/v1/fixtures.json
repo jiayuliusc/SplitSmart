@@ -201,6 +201,15 @@
       }
     },
     {
+      "id": "SettlementDraft",
+      "type": "SettlementDraft",
+      "value": {
+        "payerId": "B",
+        "payeeId": "A",
+        "amountCents": "400"
+      }
+    },
+    {
       "id": "Settlement",
       "type": "Settlement",
       "value": {

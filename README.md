@@ -338,11 +338,13 @@ record for exact coverage and remaining platform limitations.
 
 ## Financial demo
 
-From **View balances**, use **Add settlement** to record an offline payment. Only
-the signed-in payer can create their payment, and only its creator sees the edit
-icon. The form supports saving changes and confirmed deletion. The server rejects
-self-payments, overpayments, stale revisions and unauthorized edits independently
-of the controls. This records a payment already made; it transfers no money.
+From **View balances**, use **Add settlement** to record an offline payment.
+Either party can record it: choose **I paid them** or **They paid me**, then the
+other member. Payer and recipient are fixed once saved; only amount and note can
+be edited, and only the settlement's creator sees the edit icon. The form supports
+saving changes and confirmed deletion. The server rejects self-payments,
+overpayments, stale revisions and unauthorized edits independently of the controls.
+This records a payment already made; it transfers no money.
 
 The same page lists expenses and opens their details. **Edit expense** reuses the
 expense form; creator-only deletion is retained. Exact-split expense edits retain
