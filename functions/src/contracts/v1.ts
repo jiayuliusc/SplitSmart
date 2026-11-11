@@ -86,6 +86,7 @@ export interface Expense {
 }
 
 export interface SettlementDraft {
+  readonly payerId?: string;
   readonly payeeId: string;
   readonly amountCents: Cents;
   readonly note?: string;

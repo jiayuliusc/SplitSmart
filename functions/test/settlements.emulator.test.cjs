@@ -91,17 +91,18 @@ test('exact pair and aggregate bounds reject mutations without changing ledger',
  await denied(f.owner,'createExpense',f.payload({localDate:'2026-11-04',draft:{title:'Overflow',amountCents:'9007199254740991',payerId:f.owner.uid,participantIds:[f.owner.uid,f.member.uid].sort(),splitMethod:'EXACT',category:'OTHER',splitInputs:[{participantId:f.owner.uid,amountCents:'0'},{participantId:f.member.uid,amountCents:'9007199254740991'}].sort((a,b)=>a.participantId.localeCompare(b.participantId))}}),'OUT_OF_RANGE');
  const ledger=(await ok(f.owner,'getGroupLedger',{schemaVersion:1,groupId:f.groupId})).ledger;assert.equal(ledger.expenses.length,1);
 });
-test('payee changes require real debt, and expense edits keep recorded payments',async()=>{
+test('settlement parties are fixed, and expense edits keep recorded payments',async()=>{
  const f=await fixture(); const other=await user();
  await f.mutate(f.owner,'addGroupMember',f.payload({email:other.email}));
  const expense=await f.expense(); const payment=(await f.mutate(f.member,'createSettlement',f.create())).value;
- await denied(f.member,'updateSettlement',f.payload({settlementId:payment.settlementId,draft:{payeeId:other.uid,amountCents:'100'}}),'VALIDATION');
  await f.mutate(other,'createExpense',f.payload({localDate:'2026-11-04',draft:{title:'Other debt',amountCents:'300',payerId:other.uid,participantIds:[other.uid,f.member.uid].sort(),splitMethod:'EQUAL',category:'OTHER',splitInputs:[]}}));
- await f.mutate(f.member,'updateSettlement',f.payload({settlementId:payment.settlementId,draft:{payeeId:other.uid,amountCents:'150'}}));
+ // The member now really owes `other`, but the payee still cannot change.
+ await denied(f.member,'updateSettlement',f.payload({settlementId:payment.settlementId,draft:{payeeId:other.uid,amountCents:'100'}}),'VALIDATION');
+ await f.mutate(f.member,'updateSettlement',f.payload({settlementId:payment.settlementId,draft:{payeeId:f.owner.uid,amountCents:'150'}}));
  const revised=await f.mutate(f.owner,'updateExpense',f.payload({expenseId:expense.expenseId,draft:{title:'Corrected',amountCents:'100',payerId:f.owner.uid,participantIds:[f.owner.uid,f.member.uid].sort(),splitMethod:'EQUAL',category:'FOOD',splitInputs:[]}}));
  assert.equal(revised.value.amountCents,'100');
  const ledger=(await ok(f.member,'getGroupLedger',{schemaVersion:1,groupId:f.groupId})).ledger;
- assert.equal(ledger.settlements[0].payeeId,other.uid);assert.equal(ledger.settlements[0].amountCents,'150');
+ assert.equal(ledger.settlements[0].payeeId,f.owner.uid);assert.equal(ledger.settlements[0].amountCents,'150');
  await f.mutate(f.member,'deleteSettlement',f.payload({settlementId:payment.settlementId}));
  assert.equal((await ok(f.member,'getGroupLedger',{schemaVersion:1,groupId:f.groupId})).ledger.settlements.length,0);
 });
@@ -114,4 +115,41 @@ test('malformed stored records stop all financial mutations without partial repa
   await denied(f.owner,'deleteExpense',f.payload({expenseId:expense.expenseId}),'INTERNAL');
   await ref.set(original);
  }
+});
+test('either side may record a payment; parties are fixed and the ledger stays readable',async t=>{
+ const f=await fixture(); const other=await user();
+ await f.mutate(f.owner,'addGroupMember',f.payload({email:other.email}));
+ await f.expense();   // owner paid $12.00 split with member: member owes owner $6.00
+ const received=(draft={})=>f.payload({localDate:'2026-11-04',draft:{payerId:f.member.uid,payeeId:f.owner.uid,amountCents:'500',...draft}});
+
+ await t.test('only a party to the payment may record it',async()=>{
+  await denied(other,'createSettlement',received(),'VALIDATION');
+ });
+ await t.test('recipient-created amounts are capped by the payer debt',async()=>{
+  await denied(f.owner,'createSettlement',received({amountCents:'601'}),'VALIDATION');
+  await denied(f.owner,'createSettlement',f.payload({localDate:'2026-11-04',draft:{payerId:f.owner.uid,payeeId:f.member.uid,amountCents:'1'}}),'VALIDATION');
+ });
+
+ const created=(await f.mutate(f.owner,'createSettlement',received())).value;
+ assert.equal(created.payerId,f.member.uid);assert.equal(created.payeeId,f.owner.uid);assert.equal(created.creatorId,f.owner.uid);
+ // Stored creator differs from payer: the ledger must still load for every member.
+ const ledger=(await ok(f.member,'getGroupLedger',{schemaVersion:1,groupId:f.groupId})).ledger;
+ assert.equal(ledger.settlements.length,1);assert.equal(ledger.settlements[0].creatorId,f.owner.uid);
+
+ await t.test('the debtor cannot edit a recipient-created record',async()=>{
+  await denied(f.member,'updateSettlement',f.payload({settlementId:created.settlementId,draft:{payerId:f.member.uid,payeeId:f.owner.uid,amountCents:'100'}}),'PERMISSION_DENIED');
+ });
+ await t.test('payer and payee cannot change on edit',async()=>{
+  await denied(f.owner,'updateSettlement',f.payload({settlementId:created.settlementId,draft:{payerId:other.uid,payeeId:f.owner.uid,amountCents:'100'}}),'VALIDATION');
+  await denied(f.owner,'updateSettlement',f.payload({settlementId:created.settlementId,draft:{payerId:f.member.uid,payeeId:other.uid,amountCents:'100'}}),'VALIDATION');
+ });
+
+ const edited=(await f.mutate(f.owner,'updateSettlement',f.payload({settlementId:created.settlementId,draft:{payerId:f.member.uid,payeeId:f.owner.uid,amountCents:'600',note:'cash'}}))).value;
+ assert.equal(edited.amountCents,'600');assert.equal(edited.payerId,f.member.uid);assert.equal(edited.creatorId,f.owner.uid);
+ // Omitting payerId on edit keeps the stored payer.
+ const kept=(await f.mutate(f.owner,'updateSettlement',f.payload({settlementId:created.settlementId,draft:{payeeId:f.owner.uid,amountCents:'300'}}))).value;
+ assert.equal(kept.payerId,f.member.uid);assert.equal(kept.amountCents,'300');
+
+ await f.mutate(f.owner,'deleteSettlement',f.payload({settlementId:created.settlementId}));
+ assert.equal((await ok(f.member,'getGroupLedger',{schemaVersion:1,groupId:f.groupId})).ledger.settlements.length,0);
 });
