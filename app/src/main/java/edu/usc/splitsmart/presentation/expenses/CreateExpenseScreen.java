@@ -101,8 +101,8 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             android.R.layout.simple_spinner_item, Category.values());
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
-        try { spinner.setSelection(Category.valueOf(model.draft("category", Category.values()[0].name())).ordinal()); }
-        catch (IllegalArgumentException ignored) { spinner.setSelection(0); }
+        try { spinner.setSelection(Category.valueOf(model.draft("category", Category.OTHER.name())).ordinal()); }
+        catch (IllegalArgumentException ignored) { spinner.setSelection(Category.OTHER.ordinal()); }
         spinner.setOnItemSelectedListener(changes(() -> {
             Category category = (Category) spinner.getSelectedItem();
             if (category != null) model.editDraft("category", category.name());
