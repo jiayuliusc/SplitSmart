@@ -147,6 +147,7 @@ public final class CreateExpenseScreen extends ProtectedScreen {
         spinner.setOnItemSelectedListener(changes(() -> {
             String payer = payerId();
             if (payer != null) model.editDraft("payer", payer);
+            syncPayerParticipant();
             requestPreview();
         }));
     }
@@ -170,7 +171,30 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             });
             participantBoxes.add(box); container.addView(box);
         }
+        syncPayerParticipant();
         persistParticipants();
+    }
+
+    private void syncPayerParticipant() {
+        String payer = payerId();
+        ExpenseDraft original = model.originalDraft();
+        boolean editable = expenseId == null || original == null || original.splitMethod() == SplitMethod.EQUAL;
+        boolean changed = false;
+        boolean wasRendering = rendering;
+        rendering = true;
+        for (CheckBox box : participantBoxes) {
+            boolean isPayer = Objects.equals(box.getTag(), payer);
+            if (isPayer && !box.isChecked()) {
+                box.setChecked(true);
+                changed = true;
+            }
+            box.setEnabled(editable && !isPayer);
+        }
+        rendering = wasRendering;
+        if (changed && !rendering) {
+            persistParticipants();
+            rebuildSplitEditors();
+        }
     }
 
     private void rebuildSplitEditors() {
