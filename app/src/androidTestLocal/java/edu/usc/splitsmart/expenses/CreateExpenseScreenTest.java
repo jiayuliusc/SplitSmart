@@ -64,6 +64,46 @@ public final class CreateExpenseScreenTest {
         throw new AssertionError("Missing participant " + uid);
     }
 
+    private void assertLockedNonEqualEdit(String groupId, String expenseId, SplitMethod method,
+                                           String aliceUid, String bobUid) throws Exception {
+        Activity[] screen = {null};
+        int[] nextPayerPosition = {-1};
+        instrumentation.startActivitySync(new Intent(instrumentation.getTargetContext(), CreateExpenseScreen.class)
+            .putExtra(NavigationContract.GROUP_ID, groupId)
+            .putExtra(NavigationContract.EXPENSE_ID, expenseId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        await(() -> {
+            for (Activity current : ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)) {
+                if (current.getClass() == CreateExpenseScreen.class
+                    && current.findViewById(R.id.feature_content).isShown()
+                    && ((Spinner) current.findViewById(R.id.expense_payer_spinner)).getCount() == 2
+                    && ((Spinner) current.findViewById(R.id.expense_split_method_spinner)).getSelectedItemPosition() == method.ordinal()) {
+                    screen[0] = current;
+                    return true;
+                }
+            }
+            return false;
+        });
+        instrumentation.runOnMainSync(() -> {
+            Spinner payer = screen[0].findViewById(R.id.expense_payer_spinner);
+            assertTrue(participant(screen[0], aliceUid).isChecked());
+            assertTrue(participant(screen[0], bobUid).isChecked());
+            assertFalse(participant(screen[0], aliceUid).isEnabled());
+            assertFalse(participant(screen[0], bobUid).isEnabled());
+            nextPayerPosition[0] = 1 - payer.getSelectedItemPosition();
+            payer.setSelection(nextPayerPosition[0]);
+        });
+        await(() -> {
+            Spinner payer = screen[0].findViewById(R.id.expense_payer_spinner);
+            String payerUid = payer.getSelectedItem().equals("Alice") ? aliceUid : bobUid;
+            return payer.getSelectedItemPosition() == nextPayerPosition[0]
+                && participant(screen[0], payerUid).isChecked()
+                && !participant(screen[0], aliceUid).isEnabled()
+                && !participant(screen[0], bobUid).isEnabled();
+        });
+        instrumentation.runOnMainSync(screen[0]::finish);
+    }
+
     @Test public void payerIsLockedOnRenderAndSelectionWhileSaveValidationRejectsMissingPayer() throws Exception {
         SplitSmartApplication app = (SplitSmartApplication) instrumentation.getTargetContext().getApplicationContext();
         var auth = app.getContainer().auth();
@@ -137,6 +177,29 @@ public final class CreateExpenseScreenTest {
             assertNull(rejected.value);
             assertEquals(ErrorCode.VALIDATION, rejected.error.code());
             assertEquals("participantIds", rejected.error.field());
+
+            instrumentation.runOnMainSync(screen[0]::finish);
+            List<String> participants = new ArrayList<>(List.of(alice.value().uid(), bob.value().uid()));
+            Collections.sort(participants);
+            List<SplitInput> exactInputs = new ArrayList<>();
+            List<SplitInput> percentageInputs = new ArrayList<>();
+            for (String uid : participants) {
+                exactInputs.add(new SplitInput(uid, 500L, null));
+                percentageInputs.add(new SplitInput(uid, null, 5000));
+            }
+            ExpenseDraft exact = new ExpenseDraft("Exact dinner", 1000, alice.value().uid(),
+                participants, SplitMethod.EXACT, Category.FOOD, null, exactInputs);
+            MutationResult<Expense> exactSaved = ok(cb -> expenses.createExpense(group.value().groupId(),
+                added.groupRevision(), exact, LocalDate.now(), UUID.randomUUID().toString(), cb));
+            assertLockedNonEqualEdit(group.value().groupId(), exactSaved.value().expenseId(),
+                SplitMethod.EXACT, alice.value().uid(), bob.value().uid());
+
+            ExpenseDraft percentage = new ExpenseDraft("Percentage dinner", 1000, alice.value().uid(),
+                participants, SplitMethod.PERCENTAGE, Category.FOOD, null, percentageInputs);
+            MutationResult<Expense> percentageSaved = ok(cb -> expenses.createExpense(group.value().groupId(),
+                exactSaved.groupRevision(), percentage, LocalDate.now(), UUID.randomUUID().toString(), cb));
+            assertLockedNonEqualEdit(group.value().groupId(), percentageSaved.value().expenseId(),
+                SplitMethod.PERCENTAGE, alice.value().uid(), bob.value().uid());
         } finally {
             instrumentation.runOnMainSync(() -> {
                 if (screen[0] != null) screen[0].finish();
