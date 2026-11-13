@@ -182,16 +182,15 @@ public final class CreateExpenseScreen extends ProtectedScreen {
         boolean changed = false;
         boolean wasRendering = rendering;
         rendering = true;
-        try {
-            for (CheckBox box : participantBoxes) {
-                boolean isPayer = Objects.equals(box.getTag(), payer);
-                if (isPayer && !box.isChecked()) {
-                    box.setChecked(true);
-                    changed = true;
-                }
-                box.setEnabled(editable && !isPayer);
+        for (CheckBox box : participantBoxes) {
+            boolean isPayer = Objects.equals(box.getTag(), payer);
+            if (isPayer && !box.isChecked()) {
+                box.setChecked(true);
+                changed = true;
             }
-        } finally { rendering = wasRendering; }
+            box.setEnabled(editable && !isPayer);
+        }
+        rendering = wasRendering;
         if (changed && !rendering) {
             persistParticipants();
             rebuildSplitEditors();
