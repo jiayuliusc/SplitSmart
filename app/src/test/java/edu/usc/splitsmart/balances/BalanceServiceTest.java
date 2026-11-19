@@ -97,4 +97,33 @@ public final class BalanceServiceTest {
         Result r = new Result(); service.getBalances("",ReadPolicy.FRESH,r); assertEquals(0,r.calls); drain(main);
         assertEquals(ErrorCode.VALIDATION,r.error.code()); assertNull(observer);
     }
+    @Test public void nullGroupIsQueuedValidationFailure() {
+        Result r = new Result(); service.getBalances(null,ReadPolicy.FRESH,r);
+        assertEquals(0,r.calls); drain(main);
+        assertEquals(ErrorCode.VALIDATION,r.error.code()); assertNull(observer);
+    }
+    @Test public void nullPolicyIsQueuedValidationFailure() {
+        Result r = new Result(); service.getBalances("g",null,r);
+        assertEquals(0,r.calls); drain(main);
+        assertEquals(ErrorCode.VALIDATION,r.error.code()); assertNull(observer);
+    }
+    @Test public void repeatedSameSessionDoesNotStartAnotherRead() {
+        Result r = new Result(); service.getBalances("g",ReadPolicy.FRESH,r);
+        observer.onSessionChanged(new Session("A","a@usc.edu"));
+        observer.onSessionChanged(new Session("A","a@usc.edu"));
+        assertEquals(1,work.size()); drain(work); drain(main);
+        assertEquals(1,r.calls); assertNotNull(r.value);
+    }
+    @Test public void cancelledRequestIgnoresLateSessionNotification() {
+        Result r = new Result(); AsyncOperation operation=service.getBalances("g",ReadPolicy.FRESH,r);
+        operation.cancel(); observer.onSessionChanged(new Session("A","a@usc.edu"));
+        drain(work); drain(main);
+        assertNull(policy); assertEquals(0,r.calls); assertTrue(cancelled);
+    }
+    @Test public void sessionObserverFailureIsQueuedAndPreserved() {
+        Result r = new Result(); service.getBalances("g",ReadPolicy.FRESH,r);
+        AppError failure=new AppError(ErrorCode.UNAVAILABLE,"Session unavailable",null,true);
+        observer.onError(failure); assertEquals(0,r.calls); drain(main);
+        assertEquals(1,r.calls); assertEquals(failure,r.error); assertNull(policy); assertTrue(cancelled);
+    }
 }

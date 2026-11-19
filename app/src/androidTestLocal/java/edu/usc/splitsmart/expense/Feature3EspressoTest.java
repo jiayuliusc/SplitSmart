@@ -61,7 +61,7 @@ import edu.usc.splitsmart.presentation.navigation.NavigationContract;
 
 // Feature 3 black-box tests. All form actions and assertions use Espresso.
 @RunWith(AndroidJUnit4.class)
-public final class ExpenseSplittingEspressoTest {
+public final class Feature3EspressoTest {
     private final Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
     private FeatureServices services;
 
@@ -123,7 +123,7 @@ public final class ExpenseSplittingEspressoTest {
         f.groupId = created.value().groupId();
         MutationResult<Group> withCarol = ok(cb -> services.groups().addMember(
             f.groupId, created.value().revision(), carolEmail, UUID.randomUUID().toString(), cb));
-        ok(cb -> services.groups().addMember(
+        this.<MutationResult<Group>>ok(cb -> services.groups().addMember(
             f.groupId, withCarol.value().revision(), davidEmail, UUID.randomUUID().toString(), cb));
         return f;
     }
