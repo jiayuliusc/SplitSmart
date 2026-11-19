@@ -169,7 +169,7 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             participantBoxes.add(box); container.addView(box);
         }
         syncPayerParticipant();
-        persistParticipants();
+        if (!members.isEmpty()) persistParticipants();
     }
 
     private void syncPayerParticipant() {
