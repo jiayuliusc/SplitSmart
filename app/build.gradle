@@ -188,3 +188,22 @@ task feature3JacocoTestReport(type: JacocoReport, dependsOn: ['testLocalDebugUni
         'outputs/unit_test_code_coverage/localDebugUnitTest/testLocalDebugUnitTest.exec'
     ]))
 }
+
+// Feature 4 coverage is deliberately scoped to its pure Java calculator and balance service.
+// Instrumented UI behavior is verified separately by Feature4BalancesEspressoTest.
+tasks.withType(Test).configureEach {
+    jacoco.includeNoLocationClasses = false
+}
+tasks.register('feature4Coverage', JacocoReport) {
+    dependsOn 'testLocalDebugUnitTest'
+    executionData fileTree(layout.buildDirectory).include('jacoco/testLocalDebugUnitTest.exec')
+    sourceDirectories.setFrom(files('src/main/java'))
+    classDirectories.setFrom(fileTree(layout.buildDirectory.dir('intermediates/javac/localDebug/compileLocalDebugJavaWithJavac/classes')) {
+        include 'edu/usc/splitsmart/domain/calculation/BalanceCalculator.class'
+        include 'edu/usc/splitsmart/service/balances/DefaultBalanceService*.class'
+    })
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
