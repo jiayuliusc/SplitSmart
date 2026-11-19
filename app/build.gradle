@@ -110,6 +110,7 @@ dependencies {
     testImplementation 'com.google.code.gson:gson:2.11.0'
     androidTestImplementation 'androidx.test:runner:1.6.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }
 
 task jacocoTestReport(type: JacocoReport, dependsOn: 'testLocalDebugUnitTest') {
@@ -156,5 +157,34 @@ task feature2JacocoTestReport(type: JacocoReport, dependsOn: ['testLocalDebugUni
     classDirectories.setFrom(files([javaClasses]))
     executionData.setFrom(fileTree(dir: buildDir, includes: [
         'jacoco/testLocalDebugUnitTest.exec', 'outputs/unit_test_code_coverage/localDebugUnitTest/testLocalDebugUnitTest.exec'
+    ]))
+}
+
+task feature3JacocoTestReport(type: JacocoReport, dependsOn: ['testLocalDebugUnitTest', 'compileLocalDebugJavaWithJavac']) {
+    reports {
+        xml.required = true
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir("reports/jacoco/feature3Html")
+    }
+    def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*']
+    def feature3Includes = [
+        '**/edu/usc/splitsmart/domain/calculation/ExpenseCalculation*',
+        '**/edu/usc/splitsmart/domain/validation/ExpenseValidation*',
+        '**/edu/usc/splitsmart/domain/model/ExpenseDraft*',
+        '**/edu/usc/splitsmart/domain/model/ExpenseShare*',
+        '**/edu/usc/splitsmart/domain/model/SplitInput*',
+        '**/edu/usc/splitsmart/domain/model/SplitMethod*',
+        '**/edu/usc/splitsmart/presentation/expenses/ExpenseViewModel*'
+    ]
+    def javaClasses = fileTree(
+        dir: "${buildDir}/intermediates/javac/localDebug/compileLocalDebugJavaWithJavac/classes",
+        includes: feature3Includes,
+        excludes: fileFilter
+    )
+    sourceDirectories.setFrom(files("${project.projectDir}/src/main/java"))
+    classDirectories.setFrom(files(javaClasses))
+    executionData.setFrom(fileTree(dir: buildDir, includes: [
+        'jacoco/testLocalDebugUnitTest.exec',
+        'outputs/unit_test_code_coverage/localDebugUnitTest/testLocalDebugUnitTest.exec'
     ]))
 }
