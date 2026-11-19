@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.util.*;
 import edu.usc.splitsmart.domain.contract.*;
 import edu.usc.splitsmart.domain.model.*;
+import edu.usc.splitsmart.domain.validation.ExpenseValidation;
 import edu.usc.splitsmart.service.*;
 import static org.junit.Assert.*;
 
@@ -35,7 +36,11 @@ public class ExpenseViewModelTest {
                 if (readFailure != null) callback.onError(readFailure);
                 else callback.onSuccess(new ReadResult<>(new LedgerSnapshot("g", revision, List.of("a", "b"), List.of(), List.of()), ReadSource.SERVER));
             }
-            else if (method.getName().equals("previewSplit")) ((Callback<List<ExpenseShare>>)args[1]).onSuccess(List.of());
+            else if (method.getName().equals("previewSplit")) {
+                AppError invalid = ExpenseValidation.expense((ExpenseDraft) args[0]);
+                if (invalid == null) ((Callback<List<ExpenseShare>>)args[1]).onSuccess(List.of());
+                else ((Callback<List<ExpenseShare>>)args[1]).onError(invalid);
+            }
             else if (method.getName().equals("createExpense") || method.getName().equals("updateExpense")) {
                 writes.add(args.clone()); mutation = (Callback<MutationResult<Expense>>)args[args.length - 1];
             }
@@ -91,13 +96,37 @@ public class ExpenseViewModelTest {
             Category.OTHER, null, LocalDate.of(2025, 1, 2), java.time.Instant.EPOCH, java.time.Instant.EPOCH,
             List.of(new ExpenseShare("a", 1000, null), new ExpenseShare("b", 234, null)));
         model.initializeEditor(original);
-        model.update("e", "Updated title", "12.34", "b", List.of("a", "b"), Category.OTHER, "new note");
+        model.update("e", "Updated title", "12.34", "b", List.of("a", "b"), SplitMethod.EXACT,
+            ExpenseIntent.draftFrom(original).splitInputs(), Category.OTHER, "new note");
         ExpenseDraft submitted = (ExpenseDraft) writes.get(0)[3];
         assertEquals(SplitMethod.EXACT, submitted.splitMethod());
         assertEquals(ExpenseIntent.draftFrom(original).splitInputs(), submitted.splitInputs());
         mutation.onError(new AppError(ErrorCode.DEADLINE_EXCEEDED, "Unknown outcome", null, true));
         model.retry();
         assertArrayEquals(Arrays.copyOf(writes.get(0), 5), Arrays.copyOf(writes.get(1), 5));
+    }
+    @Test public void editedSplitMethodAndInputsReachRepositoryAndInvalidTotalsDoNotWrite() {
+        ExpenseViewModel model = model(state); model.loadGroup();
+        List<String> people = List.of("a", "b");
+        List<SplitInput> exact = List.of(new SplitInput("a", 700L, null), new SplitInput("b", 300L, null));
+        List<SplitInput> percent = List.of(new SplitInput("a", null, 7000), new SplitInput("b", null, 3000));
+        model.update("e", "Dinner", "10.00", "a", people, SplitMethod.EXACT, exact, Category.OTHER, null);
+        assertEquals(SplitMethod.EXACT, ((ExpenseDraft) writes.get(0)[3]).splitMethod());
+        assertEquals(exact, ((ExpenseDraft) writes.get(0)[3]).splitInputs());
+        mutation.onError(new AppError(ErrorCode.VALIDATION, "Rejected", null, false));
+        model.update("e", "Dinner", "10.00", "a", people, SplitMethod.PERCENTAGE, percent, Category.OTHER, null);
+        assertEquals(SplitMethod.PERCENTAGE, ((ExpenseDraft) writes.get(1)[3]).splitMethod());
+        assertEquals(percent, ((ExpenseDraft) writes.get(1)[3]).splitInputs());
+        mutation.onError(new AppError(ErrorCode.VALIDATION, "Rejected", null, false));
+        model.update("e", "Dinner", "10.00", "a", people, SplitMethod.EQUAL, List.of(), Category.OTHER, null);
+        assertEquals(SplitMethod.EQUAL, ((ExpenseDraft) writes.get(2)[3]).splitMethod());
+        assertTrue(((ExpenseDraft) writes.get(2)[3]).splitInputs().isEmpty());
+        mutation.onError(new AppError(ErrorCode.VALIDATION, "Rejected", null, false));
+        model.update("e", "Dinner", "10.00", "a", people, SplitMethod.EXACT,
+            List.of(new SplitInput("a", 600L, null), new SplitInput("b", 300L, null)), Category.OTHER, null);
+        model.update("e", "Dinner", "10.00", "a", people, SplitMethod.PERCENTAGE,
+            List.of(new SplitInput("a", null, 6000), new SplitInput("b", null, 3000)), Category.OTHER, null);
+        assertEquals(3, writes.size());
     }
     @Test public void conflictRefreshPreservesDraftAndRequiresExplicitNewSubmit() {
         ExpenseViewModel model = model(state); model.loadGroup(); model.editDraft("title", "User input");

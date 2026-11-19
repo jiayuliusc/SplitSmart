@@ -132,7 +132,7 @@ public final class FinancialDemoTest {
             byte[] bytes=new byte[256];while(copy.read(bytes)!=-1){ }
         }
     }
-    @Test public void expensePayerCheckboxFollowsSelectionAndLockedEdits() throws Exception {
+    @Test public void expensePayerCheckboxFollowsSelectionAndEditableSplits() throws Exception {
         String suffix=UUID.randomUUID().toString().replace("-","");
         long base=Math.floorMod(UUID.randomUUID().getMostSignificantBits(),8_000_000_000L);
         try {
@@ -176,11 +176,11 @@ public final class FinancialDemoTest {
             instrumentation.runOnMainSync(screen::finish);
 
             List<String> ids=new ArrayList<>(List.of(users.get(0).uid(),users.get(1).uid()));Collections.sort(ids);
-            for(SplitMethod method:List.of(SplitMethod.EXACT,SplitMethod.PERCENTAGE)) {
+            for(SplitMethod method:List.of(SplitMethod.EQUAL,SplitMethod.EXACT,SplitMethod.PERCENTAGE)) {
                 List<SplitInput> inputs=new ArrayList<>();
-                for(String uid:ids)inputs.add(method==SplitMethod.EXACT
+                if(method!=SplitMethod.EQUAL) for(String uid:ids)inputs.add(method==SplitMethod.EXACT
                     ? new SplitInput(uid,500L,null):new SplitInput(uid,null,5000));
-                ExpenseDraft draft=new ExpenseDraft("Locked split",1000,users.get(0).uid(),ids,method,Category.FOOD,null,inputs);
+                ExpenseDraft draft=new ExpenseDraft("Editable split",1000,users.get(0).uid(),ids,method,Category.FOOD,null,inputs);
                 long currentRevision=ledger(group).revision();
                 Expense saved=this.<MutationResult<Expense>>ok(cb -> services.expenses().createExpense(group,currentRevision,draft,
                     LocalDate.now(),UUID.randomUUID().toString(),cb)).value();
@@ -188,13 +188,18 @@ public final class FinancialDemoTest {
                     .putExtra(NavigationContract.GROUP_ID,group).putExtra(NavigationContract.EXPENSE_ID,saved.expenseId())
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK));
                 activity(CreateExpenseScreen.class);
-                await("locked edit",() -> ((Spinner)screen.findViewById(R.id.expense_split_method_spinner)).getSelectedItemPosition()==method.ordinal()
+                await("editable split",() -> ((Spinner)screen.findViewById(R.id.expense_split_method_spinner)).getSelectedItemPosition()==method.ordinal()
                     && ((Spinner)screen.findViewById(R.id.expense_payer_spinner)).getCount()==2);
                 instrumentation.runOnMainSync(() -> {
                     ViewGroup boxes=screen.findViewById(R.id.expense_participants_container);
                     for(int i=0;i<boxes.getChildCount();i++) {
-                        CheckBox box=(CheckBox)boxes.getChildAt(i);assertTrue(box.isChecked());assertFalse(box.isEnabled());
+                        CheckBox box=(CheckBox)boxes.getChildAt(i);assertTrue(box.isChecked());
                     }
+                    assertTrue(screen.findViewById(R.id.expense_amount).isEnabled());
+                    ViewGroup editors=screen.findViewById(R.id.expense_split_inputs_container);
+                    assertEquals(method==SplitMethod.EQUAL?0:2,editors.getChildCount());
+                    for(int i=0;i<editors.getChildCount();i++)
+                        assertTrue(((ViewGroup)editors.getChildAt(i)).getChildAt(1).isEnabled());
                     Spinner payer=screen.findViewById(R.id.expense_payer_spinner);payer.setSelection(1-payer.getSelectedItemPosition());
                 });
                 instrumentation.waitForIdleSync();
@@ -202,9 +207,51 @@ public final class FinancialDemoTest {
                     ViewGroup boxes=screen.findViewById(R.id.expense_participants_container);
                     Spinner payer=screen.findViewById(R.id.expense_payer_spinner);
                     assertTrue(((CheckBox)boxes.getChildAt(payer.getSelectedItemPosition())).isChecked());
-                    for(int i=0;i<boxes.getChildCount();i++)assertFalse(boxes.getChildAt(i).isEnabled());
-                    screen.finish();
+                    for(int i=0;i<boxes.getChildCount();i++)
+                        assertEquals(i!=payer.getSelectedItemPosition(),boxes.getChildAt(i).isEnabled());
                 });
+                SplitMethod target=method==SplitMethod.EQUAL?SplitMethod.EXACT
+                    :method==SplitMethod.EXACT?SplitMethod.PERCENTAGE:SplitMethod.EQUAL;
+                input(R.id.expense_amount,"12.00");
+                instrumentation.runOnMainSync(() -> ((Spinner)screen.findViewById(R.id.expense_split_method_spinner)).setSelection(target.ordinal()));
+                await("selected split method",() -> ((Spinner)screen.findViewById(R.id.expense_split_method_spinner)).getSelectedItemPosition()==target.ordinal()
+                    && ((ViewGroup)screen.findViewById(R.id.expense_split_inputs_container)).getChildCount()==(target==SplitMethod.EQUAL?0:2));
+                if(target!=SplitMethod.EQUAL) {
+                    instrumentation.runOnMainSync(() -> {
+                        ViewGroup editors=screen.findViewById(R.id.expense_split_inputs_container);
+                        ((EditText)((ViewGroup)editors.getChildAt(0)).getChildAt(1)).setText(target==SplitMethod.EXACT?"5.00":"40");
+                        ((EditText)((ViewGroup)editors.getChildAt(1)).getChildAt(1)).setText(target==SplitMethod.EXACT?"6.00":"50");
+                    });
+                    await("invalid split total",() -> ((TextView)screen.findViewById(R.id.expense_split_error)).getText().length()>0
+                        && !screen.findViewById(R.id.expense_submit).isEnabled());
+                    instrumentation.runOnMainSync(() -> {
+                        ViewGroup editors=screen.findViewById(R.id.expense_split_inputs_container);
+                        ((EditText)((ViewGroup)editors.getChildAt(0)).getChildAt(1)).setText(target==SplitMethod.EXACT?"6.00":"50");
+                    });
+                    SplitMethod alternate=target==SplitMethod.EXACT?SplitMethod.PERCENTAGE:SplitMethod.EXACT;
+                    instrumentation.runOnMainSync(() -> ((Spinner)screen.findViewById(R.id.expense_split_method_spinner)).setSelection(alternate.ordinal()));
+                    instrumentation.runOnMainSync(() -> ((Spinner)screen.findViewById(R.id.expense_split_method_spinner)).setSelection(target.ordinal()));
+                    await("preserved split inputs",() -> {
+                        ViewGroup editors=screen.findViewById(R.id.expense_split_inputs_container);
+                        return editors.getChildCount()==2
+                            && ((EditText)((ViewGroup)editors.getChildAt(0)).getChildAt(1)).getText().toString().equals(target==SplitMethod.EXACT?"6.00":"50")
+                            && ((EditText)((ViewGroup)editors.getChildAt(1)).getChildAt(1)).getText().toString().equals(target==SplitMethod.EXACT?"6.00":"50");
+                    });
+                }
+                await("valid edited split",() -> screen.findViewById(R.id.expense_submit).isEnabled());
+                click(R.id.expense_submit);
+                await("saved edited split",() -> screen.isFinishing());
+                Expense updated=ledger(group).expenses().stream().filter(e -> e.expenseId().equals(saved.expenseId())).findFirst().orElseThrow();
+                assertEquals(target,updated.splitMethod());
+                assertEquals(1200,updated.amountCents());
+                assertEquals(2,updated.shares().size());
+                for(ExpenseShare share:updated.shares())assertEquals(600,share.amountCents());
+                instrumentation.startActivitySync(new Intent(instrumentation.getTargetContext(),CreateExpenseScreen.class)
+                    .putExtra(NavigationContract.GROUP_ID,group).putExtra(NavigationContract.EXPENSE_ID,saved.expenseId())
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                activity(CreateExpenseScreen.class);
+                await("reopened edited split",() -> ((Spinner)screen.findViewById(R.id.expense_split_method_spinner)).getSelectedItemPosition()==target.ordinal());
+                instrumentation.runOnMainSync(screen::finish);
             }
         } finally {
             instrumentation.runOnMainSync(() -> {

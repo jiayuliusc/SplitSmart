@@ -106,7 +106,7 @@ public final class ExpenseViewModel extends FeatureViewModel {
         }));
     }
     public void create(String title, String amount, String payerId, List<String> participantIds, Category category, String note) {
-        submit(null, title, amount, payerId, participantIds, category, note);
+        create(title, amount, payerId, participantIds, SplitMethod.EQUAL, List.of(), category, note);
     }
     public void create(String title, String amount, String payerId, List<String> participantIds,
                        SplitMethod method, List<SplitInput> inputs, Category category, String note) {
@@ -120,26 +120,15 @@ public final class ExpenseViewModel extends FeatureViewModel {
         String key = intent(mutation.operation(), mutation.save().toArray(new String[0]));
         replay(mutation, key);
     }
-    public void update(String expenseId, String title, String amount, String payerId, List<String> participantIds, Category category, String note) {
-        submit(expenseId, title, amount, payerId, participantIds, category, note);
-    }
-    private void submit(String expenseId, String title, String amount, String payerId, List<String> participantIds, Category category, String note) {
+    public void update(String expenseId, String title, String amount, String payerId, List<String> participantIds,
+                       SplitMethod method, List<SplitInput> inputs, Category category, String note) {
         if (isBusy() || pending() || ledger.getValue() == null) return;
-        long cents;
-        try { cents = parseDollarsToCents(amount); }
+        ExpenseDraft draft;
+        try { draft = draft(title, amount, payerId, participantIds, method, inputs, category, note); }
         catch (RuntimeException invalid) {
-            failed(new AppError(ErrorCode.VALIDATION, "Enter a valid dollar amount (e.g. 25.50).", "amountCents", false)); return;
+            failed(new AppError(ErrorCode.VALIDATION, invalid.getMessage(), "splitInputs", false)); return;
         }
-        ExpenseDraft original = originalDraft();
-        SplitMethod method = expenseId != null && original != null ? original.splitMethod() : SplitMethod.EQUAL;
-        if (method != SplitMethod.EQUAL && (!participantIds.equals(original.participantIds())
-            || (method == SplitMethod.EXACT && cents != original.amountCents()))) {
-            failed(new AppError(ErrorCode.VALIDATION, "Keep the original exact amounts and split participants for this expense.", null, false)); return;
-        }
-        ExpenseDraft draft = new ExpenseDraft(title.trim(), cents, payerId, participantIds, method, category,
-            note == null || note.trim().isEmpty() ? null : note.trim(), method == SplitMethod.EQUAL ? List.of() : original.splitInputs());
-        ExpenseIntent mutation = new ExpenseIntent(expenseId == null ? "create" : "update", ledger.getValue().revision(),
-            expenseId, expenseId == null ? LocalDate.now() : null, draft);
+        ExpenseIntent mutation = new ExpenseIntent("update", ledger.getValue().revision(), expenseId, null, draft);
         String key = intent(mutation.operation(), mutation.save().toArray(new String[0]));
         replay(mutation, key);
     }

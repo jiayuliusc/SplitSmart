@@ -57,7 +57,6 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             setupCategorySpinner();
             setupSplitMethodSpinner();
             renderMembers(model.members.getValue() == null ? List.of() : model.members.getValue());
-            if (expense.splitMethod() == SplitMethod.EXACT) findViewById(R.id.expense_amount).setEnabled(false);
         });
         model.splitPreview.observe(this, this::renderPreview);
         model.splitValidation.observe(this, message -> {
@@ -163,8 +162,6 @@ public final class CreateExpenseScreen extends ProtectedScreen {
             CheckBox box = new CheckBox(this);
             box.setText(member.name()); box.setTag(member.uid());
             box.setChecked(selected == null || selected.contains(member.uid()));
-            ExpenseDraft original = model.originalDraft();
-            box.setEnabled(expenseId == null || original == null || original.splitMethod() == SplitMethod.EQUAL);
             box.setOnCheckedChangeListener((button, checked) -> {
                 if (rendering) return;
                 persistParticipants(); rebuildSplitEditors(); requestPreview();
@@ -177,8 +174,6 @@ public final class CreateExpenseScreen extends ProtectedScreen {
 
     private void syncPayerParticipant() {
         String payer = payerId();
-        ExpenseDraft original = model.originalDraft();
-        boolean editable = expenseId == null || original == null || original.splitMethod() == SplitMethod.EQUAL;
         boolean changed = false;
         boolean wasRendering = rendering;
         rendering = true;
@@ -188,7 +183,7 @@ public final class CreateExpenseScreen extends ProtectedScreen {
                 box.setChecked(true);
                 changed = true;
             }
-            box.setEnabled(editable && !isPayer);
+            box.setEnabled(!isPayer);
         }
         rendering = wasRendering;
         if (changed && !rendering) {
@@ -230,7 +225,6 @@ public final class CreateExpenseScreen extends ProtectedScreen {
                     model.editDraft(key, value.toString()); requestPreview();
                 }
             });
-            editor.setEnabled(expenseId == null);
             row.addView(editor, new LinearLayout.LayoutParams(dp(132), LinearLayout.LayoutParams.WRAP_CONTENT));
             splitEditors.put(participantId, editor); container.addView(row);
         }
@@ -255,7 +249,7 @@ public final class CreateExpenseScreen extends ProtectedScreen {
                     selectedParticipantIds(), splitMethod(), splitInputs(), category, input(R.id.expense_note));
             } else {
                 model.update(expenseId, input(R.id.expense_title), input(R.id.expense_amount), payerId(),
-                    selectedParticipantIds(), category, input(R.id.expense_note));
+                    selectedParticipantIds(), splitMethod(), splitInputs(), category, input(R.id.expense_note));
             }
         } catch (IllegalArgumentException error) { model.clearSplitPreview(error.getMessage()); }
     }
