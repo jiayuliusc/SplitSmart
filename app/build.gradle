@@ -2,6 +2,11 @@ import groovy.json.JsonOutput
 
 plugins {
     id 'com.android.application'
+    id 'jacoco'
+}
+
+jacoco {
+    toolVersion = "0.8.11"
 }
 
 def cloudEnabled = providers.gradleProperty('enableCloud').orNull == 'true'
@@ -105,4 +110,51 @@ dependencies {
     testImplementation 'com.google.code.gson:gson:2.11.0'
     androidTestImplementation 'androidx.test:runner:1.6.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+}
+
+task jacocoTestReport(type: JacocoReport, dependsOn: 'testLocalDebugUnitTest') {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*']
+    def javaClasses = fileTree(dir: "${buildDir}/intermediates/javac/localDebug/compileLocalDebugJavaWithJavac/classes", excludes: fileFilter)
+    def mainSrc = "${project.projectDir}/src/main/java"
+
+    sourceDirectories.setFrom(files([mainSrc]))
+    classDirectories.setFrom(files([javaClasses]))
+    executionData.setFrom(fileTree(dir: buildDir, includes: [
+        'jacoco/testLocalDebugUnitTest.exec', 'outputs/unit_test_code_coverage/localDebugUnitTest/testLocalDebugUnitTest.exec'
+    ]))
+}
+
+task feature2JacocoTestReport(type: JacocoReport, dependsOn: ['testLocalDebugUnitTest', 'compileLocalDebugJavaWithJavac']) {
+    reports {
+        xml.required = true
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir("reports/jacoco/feature2Html")
+    }
+    def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*']
+    def feature2Includes = [
+        '**/edu/usc/splitsmart/domain/model/Expense*',
+        '**/edu/usc/splitsmart/domain/model/ExpenseShare*',
+        '**/edu/usc/splitsmart/domain/model/ExpenseDraft*',
+        '**/edu/usc/splitsmart/domain/model/SplitInput*',
+        '**/edu/usc/splitsmart/domain/model/SplitMethod*',
+        '**/edu/usc/splitsmart/domain/model/Category*',
+        '**/edu/usc/splitsmart/domain/validation/ExpenseValidation*',
+        '**/edu/usc/splitsmart/domain/calculation/ExpenseCalculation*',
+        '**/edu/usc/splitsmart/service/expenses/**',
+        '**/edu/usc/splitsmart/data/firebase/FirebaseExpenseRepository*',
+        '**/edu/usc/splitsmart/data/firebase/ExpenseCodec*',
+        '**/edu/usc/splitsmart/presentation/expenses/**'
+    ]
+    def javaClasses = fileTree(dir: "${buildDir}/intermediates/javac/localDebug/compileLocalDebugJavaWithJavac/classes", includes: feature2Includes, excludes: fileFilter)
+    def mainSrc = "${project.projectDir}/src/main/java"
+
+    sourceDirectories.setFrom(files([mainSrc]))
+    classDirectories.setFrom(files([javaClasses]))
+    executionData.setFrom(fileTree(dir: buildDir, includes: [
+        'jacoco/testLocalDebugUnitTest.exec', 'outputs/unit_test_code_coverage/localDebugUnitTest/testLocalDebugUnitTest.exec'
+    ]))
 }
