@@ -345,7 +345,9 @@ public final class Feature2EspressoTest {
             }
         });
 
-        // Leave optional and default fields unchanged (Category OTHER, Payer Bob, Equal split, empty note)
+        // The form has no signed-in-user payer default; select Bob explicitly.
+        selectSpinner(R.id.expense_payer_spinner, "Bob");
+        // Leave the remaining optional and default fields unchanged.
         click(R.id.expense_submit);
 
         // Wait for created expense in ledger
@@ -415,17 +417,12 @@ public final class Feature2EspressoTest {
             }
         });
 
-        // Attempt to save with only 1 participant (Bob)
-        click(R.id.expense_submit);
-
-        // Validation message must be displayed in error banner or status view and no expense created
-        awaitCondition("validation message shown", () -> mainCheck(() -> {
-            TextView msg = screen.findViewById(R.id.feature_message);
-            TextView banner = screen.findViewById(R.id.feature_error_banner);
-            String msgText = msg != null ? msg.getText().toString() : "";
-            String bannerText = banner != null && banner.isShown() ? banner.getText().toString() : "";
-            return msgText.contains("at least 2") || bannerText.contains("at least 2");
-        }));
+        awaitUi("participant validation", () -> {
+            TextView error = screen.findViewById(R.id.expense_split_error);
+            return error.isShown() && error.getText().toString().contains("at least 2")
+                && !screen.findViewById(R.id.expense_submit).isEnabled();
+        });
+        assertTrue(fetchLedger(f.groupId).expenses().isEmpty());
 
         // Now add Carol to participants (2 distinct participants)
         instrumentation.runOnMainSync(() -> {
@@ -477,16 +474,11 @@ public final class Feature2EspressoTest {
             input(R.id.expense_amount, invalidAmt);
             selectSpinner(R.id.expense_payer_spinner, "Bob");
 
-            click(R.id.expense_submit);
-
-            awaitCondition("validation error message", () -> mainCheck(() -> {
-                TextView msg = screen.findViewById(R.id.feature_message);
-                TextView banner = screen.findViewById(R.id.feature_error_banner);
-                String msgText = msg != null ? msg.getText().toString() : "";
-                String bannerText = banner != null && banner.isShown() ? banner.getText().toString() : "";
-                return (!msgText.isEmpty() && !msgText.contains("checking"))
-                    || (!bannerText.isEmpty());
-            }));
+            awaitUi("invalid amount", () -> {
+                TextView error = screen.findViewById(R.id.expense_split_error);
+                return error.isShown() && !error.getText().toString().isEmpty()
+                    && !screen.findViewById(R.id.expense_submit).isEnabled();
+            });
 
             // Verify no expense was created
             assertTrue("No expense must be created for invalid amount " + invalidAmt, fetchLedger(f.groupId).expenses().isEmpty());
