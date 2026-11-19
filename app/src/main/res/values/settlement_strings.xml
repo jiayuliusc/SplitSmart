@@ -2,8 +2,11 @@
     <string name="settlement_create_title">Record payment</string>
     <string name="settlement_edit_title">Edit payment</string>
     <string name="settlement_intro">Record a payment you already made. No money is transferred.</string>
-    <string name="settlement_payer">Paid by %1$s</string>
-    <string name="settlement_payee">Paid to</string>
+    <string name="settlement_i_paid">I paid them</string>
+    <string name="settlement_they_paid">They paid me</string>
+    <string name="settlement_other_member">Other member</string>
+    <string name="settlement_parties_locked">Payer and recipient can\'t be changed.</string>
+    <string name="settlement_remaining_received">They can record up to $%1$s</string>
     <string name="settlement_amount">Amount (USD)</string>
     <string name="settlement_note">Note (optional)</string>
     <string name="settlement_remaining">You can record up to $%1$s</string>

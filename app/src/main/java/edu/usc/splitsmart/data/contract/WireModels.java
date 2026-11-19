@@ -147,11 +147,13 @@ public final class WireModels {
         }
     }
 
-    /** Contract v1. Nullable components: note. Collections are defensive, unmodifiable copies. */
+    /** Contract v1. Nullable components: payerId (absent = acting user), note.
+     * Collections are defensive, unmodifiable copies. */
     public record SettlementDraft(
-            String payeeId,
-            String amountCents,
-            String note) {
+        String payerId,
+        String payeeId,
+        String amountCents,
+        String note) {
         public SettlementDraft {
             Objects.requireNonNull(payeeId, "payeeId");
             Objects.requireNonNull(amountCents, "amountCents");

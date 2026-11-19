@@ -13,7 +13,11 @@ page observes group revisions and reloads automatically after financial changes,
 including when returning from a form. **Refresh balances** remains available.
 Debts stay between the original people.
 
-History/search and monthly summary features remain interfaces only. X06 email verification and other optional features remain outside this scope.
+Each group page has a History section listing all expenses and settlements, newest first,
+with keyword search (titles and notes), filters by type, category and member, and a sort toggle.
+Tap any transaction for its complete details. Monthly summary shows a selected month’s expense
+count, total group spending and per-category totals; settlements are excluded.
+X06 email verification and other optional features remain outside this scope.
 
 Local development uses Firebase emulators under **`demo-splitsmart`**. It needs
 neither a Firebase account nor cloud credentials, `google-services.json`, billing,
@@ -334,11 +338,13 @@ record for exact coverage and remaining platform limitations.
 
 ## Financial demo
 
-From **View balances**, use **Add settlement** to record an offline payment. Only
-the signed-in payer can create their payment, and only its creator sees the edit
-icon. The form supports saving changes and confirmed deletion. The server rejects
-self-payments, overpayments, stale revisions and unauthorized edits independently
-of the controls. This records a payment already made; it transfers no money.
+From **View balances**, use **Add settlement** to record an offline payment.
+Either party can record it: choose **I paid them** or **They paid me**, then the
+other member. Payer and recipient are fixed once saved; only amount and note can
+be edited, and only the settlement's creator sees the edit icon. The form supports
+saving changes and confirmed deletion. The server rejects self-payments,
+overpayments, stale revisions and unauthorized edits independently of the controls.
+This records a payment already made; it transfers no money.
 
 The same page lists expenses and opens their details. **Edit expense** reuses the
 expense form; creator-only deletion is retained. Exact-split expense edits retain

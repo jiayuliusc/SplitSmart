@@ -46,3 +46,12 @@ test('stored percentage allocations must match contract and never silently repai
  assert.deepEqual(expenseRecord('e','g',data).shares.map(s=>s.amountCents),['0','1']);
  assert.throws(()=>expenseRecord('e','g',{...data,shares:[{participantId:'a',amountCents:1,basisPoints:1000},{participantId:'b',amountCents:0,basisPoints:9000}]}),e=>e.code==='INTERNAL');
 });
+test('settlement drafts accept an optional payer and validate its format',()=>{
+ const debtor=v.settlementDraft({payeeId:'a',amountCents:'100'});
+ assert.equal(debtor.payeeId,'a');assert.equal('payerId' in debtor,false);
+ const recipient=v.settlementDraft({payerId:'b',payeeId:'a',amountCents:'100'});
+ assert.equal(recipient.payerId,'b');assert.equal(recipient.payeeId,'a');
+ for(const payerId of ['', 'bad id!', null, 42]) {
+  assert.throws(()=>v.settlementDraft({payerId,payeeId:'a',amountCents:'100'}),String(payerId));
+ }
+});

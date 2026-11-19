@@ -14,10 +14,12 @@ import edu.usc.splitsmart.presentation.common.*;
 import edu.usc.splitsmart.presentation.navigation.NavigationContract;
 
 public final class SettlementFormScreen extends ProtectedScreen {
+    private static final String PAID = "paid";          // I paid the other member
+    private static final String RECEIVED = "received";  // the other member paid me
     private SettlementViewModel model;
-    private final List<MemberProfile> payees = new ArrayList<>();
-    private boolean renderingPayees;
-    private String payerName;
+    private final List<MemberProfile> others = new ArrayList<>();
+    private boolean renderingMembers;
+
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state); screen(R.layout.screen_settlement_form);
         String groupId = getIntent().getStringExtra(NavigationContract.GROUP_ID);
@@ -32,15 +34,27 @@ public final class SettlementFormScreen extends ProtectedScreen {
         bind(model,R.id.settlement_submit,R.id.settlement_delete);
         bindDraft(model,R.id.settlement_amount,"amount"); bindDraft(model,R.id.settlement_note,"note");
         text(R.id.settlement_amount,model.draft("amount","")); text(R.id.settlement_note,model.draft("note",""));
+
+        // Direction: "I paid them" or "They paid me". Restored from the draft after rotation.
+        RadioGroup direction = findViewById(R.id.settlement_direction);
+        direction.check(RECEIVED.equals(model.draft("direction", PAID)) ? R.id.settlement_they_paid : R.id.settlement_i_paid);
+        direction.setOnCheckedChangeListener((group, checkedId) -> {
+            if (renderingMembers) return;
+            model.editDraft("direction", checkedId == R.id.settlement_they_paid ? RECEIVED : PAID);
+            renderLimit();
+        });
+
+        // The other party: every group member except the signed-in user.
         Spinner spinner = findViewById(R.id.settlement_payee_spinner);
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent,View view,int position,long id) {
-                if (renderingPayees || position < 0 || position >= payees.size()) return;
-                model.editDraft("payee",payees.get(position).uid()); renderLimit();
+                if (renderingMembers || position < 0 || position >= others.size()) return;
+                model.editDraft("other",others.get(position).uid()); renderLimit();
             }
             @Override public void onNothingSelected(AdapterView<?> parent) { }
         });
-        model.members.observe(this, members -> renderMembers(members));
+
+        model.members.observe(this, this::renderMembers);
         model.ledger.observe(this, ledger -> {
             if (ledger != null) {
                 text(R.id.settlement_amount,model.draft("amount","")); text(R.id.settlement_note,model.draft("note",""));
@@ -49,12 +63,16 @@ public final class SettlementFormScreen extends ProtectedScreen {
         });
         model.original.observe(this, original -> show(R.id.settlement_delete, original != null));
         model.busy.observe(this, busy -> {
-            spinner.setEnabled(!Boolean.TRUE.equals(busy) && !model.pending() && model.ledger.getValue() != null);
             boolean available = model.ledger.getValue() != null;
-            findViewById(R.id.settlement_submit).setEnabled(!Boolean.TRUE.equals(busy) && !model.pending() && available);
-            if (!model.pending() && !Boolean.TRUE.equals(busy) && !available) show(R.id.identity_retry,true);
+            boolean idle = !Boolean.TRUE.equals(busy) && !model.pending();
+            setPartiesEnabled(idle && available && !model.editing());   // parties are locked when editing
+            findViewById(R.id.settlement_submit).setEnabled(idle && available);
+            if (idle && !available) show(R.id.identity_retry,true);
         });
-        findViewById(R.id.settlement_submit).setOnClickListener(view -> model.save(selectedPayee(),input(R.id.settlement_amount),input(R.id.settlement_note)));
+        show(R.id.settlement_parties_locked, model.editing());
+
+        findViewById(R.id.settlement_submit).setOnClickListener(view ->
+            model.save(payer(),payee(),input(R.id.settlement_amount),input(R.id.settlement_note)));
         findViewById(R.id.settlement_delete).setOnClickListener(view -> new AlertDialog.Builder(this)
             .setTitle(R.string.settlement_delete_title).setMessage(R.string.settlement_delete_message)
             .setNegativeButton(R.string.settlement_cancel,null)
@@ -68,34 +86,58 @@ public final class SettlementFormScreen extends ProtectedScreen {
         });
         protect();
     }
+
     private static boolean validId(String value) { return value != null && value.matches("[A-Za-z0-9_-]{1,128}"); }
+
     private void renderMembers(List<MemberProfile> members) {
         if (currentUid == null) return;
-        String selected = model.draft("payee","");
-        renderingPayees = true;
+        // When editing, the parties come from the stored settlement and cannot change.
+        Settlement original = model.original.getValue();
+        if (original != null) {
+            boolean iPaid = currentUid.equals(original.payerId());
+            model.editDraft("direction", iPaid ? PAID : RECEIVED);
+            model.editDraft("other", iPaid ? original.payeeId() : original.payerId());
+        }
+        String selected = model.draft("other","");
+        renderingMembers = true;
         try {
-            payees.clear(); List<String> names = new ArrayList<>();
+            ((RadioGroup) findViewById(R.id.settlement_direction)).check(
+                RECEIVED.equals(model.draft("direction", PAID)) ? R.id.settlement_they_paid : R.id.settlement_i_paid);
+            others.clear(); List<String> names = new ArrayList<>();
             for (MemberProfile member : members) {
-                if (currentUid.equals(member.uid())) payerName = member.name();
-                else { payees.add(member); names.add(member.name()); }
+                if (!currentUid.equals(member.uid())) { others.add(member); names.add(member.name()); }
             }
             Spinner spinner = findViewById(R.id.settlement_payee_spinner);
             ArrayAdapter<String> adapter = new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,names);
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); spinner.setAdapter(adapter);
             int position = 0;
-            for (int i = 0; i < payees.size(); i++) if (payees.get(i).uid().equals(selected)) position = i;
-            if (!payees.isEmpty()) { spinner.setSelection(position); model.editDraft("payee",payees.get(position).uid()); }
-            text(R.id.settlement_payer,getString(R.string.settlement_payer,payerName == null ? "" : payerName));
-        } finally { renderingPayees = false; }
+            for (int i = 0; i < others.size(); i++) if (others.get(i).uid().equals(selected)) position = i;
+            if (!others.isEmpty()) { spinner.setSelection(position); model.editDraft("other",others.get(position).uid()); }
+        } finally { renderingMembers = false; }
         renderLimit();
     }
-    private String selectedPayee() {
+
+    private String otherMember() {
         int position = ((Spinner)findViewById(R.id.settlement_payee_spinner)).getSelectedItemPosition();
-        return position >= 0 && position < payees.size() ? payees.get(position).uid() : null;
+        return position >= 0 && position < others.size() ? others.get(position).uid() : null;
     }
+    private boolean theyPaid() {
+        return ((RadioGroup) findViewById(R.id.settlement_direction)).getCheckedRadioButtonId() == R.id.settlement_they_paid;
+    }
+    private String payer() { return theyPaid() ? otherMember() : currentUid; }
+    private String payee() { return theyPaid() ? currentUid : otherMember(); }
+
+    private void setPartiesEnabled(boolean enabled) {
+        findViewById(R.id.settlement_payee_spinner).setEnabled(enabled);
+        findViewById(R.id.settlement_i_paid).setEnabled(enabled);      // RadioGroup.setEnabled does not reach its buttons
+        findViewById(R.id.settlement_they_paid).setEnabled(enabled);
+    }
+
     private void renderLimit() {
-        text(R.id.settlement_limit,getString(R.string.settlement_remaining,SettlementViewModel.dollars(model.remaining(selectedPayee()))));
+        text(R.id.settlement_limit,getString(theyPaid() ? R.string.settlement_remaining_received : R.string.settlement_remaining,
+            SettlementViewModel.dollars(model.remaining(payer(),payee()))));
     }
+
     @Override protected void bindErrors(FeatureViewModel viewModel) {
         viewModel.error.observe(this,error -> {
             if (error == null) return;
@@ -104,7 +146,7 @@ public final class SettlementFormScreen extends ProtectedScreen {
                 resource = switch (error.field() == null ? "" : error.field().replace("draft.","")) {
                     case "amountCents" -> R.string.settlement_invalid_amount;
                     case "remaining" -> R.string.settlement_overpayment;
-                    case "payeeId" -> R.string.settlement_invalid_payee;
+                    case "payeeId", "payerId" -> R.string.settlement_invalid_payee;
                     case "note" -> R.string.settlement_invalid_note;
                     default -> R.string.settlement_error;
                 };
@@ -117,9 +159,9 @@ public final class SettlementFormScreen extends ProtectedScreen {
     }
     @Override protected void onAuthorized(User user) {
         if (model == null) return;
-        payerName = user.name(); model.bindUser(user.uid()); model.load();
+        model.bindUser(user.uid()); model.load();
     }
     @Override protected void onAccessLost() {
-        if (model != null) { model.clearPrivate(); payees.clear(); payerName = null; }
+        if (model != null) { model.clearPrivate(); others.clear(); }
     }
 }

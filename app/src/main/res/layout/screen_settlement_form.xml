@@ -92,9 +92,13 @@
                 android:textColor="#30292A"
                 android:layout_marginBottom="12dp" />
 
-            <TextView android:id="@+id/settlement_payer" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="16sp" android:textColor="#30292A" android:layout_marginBottom="16dp" />
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/settlement_payee" android:labelFor="@id/settlement_payee_spinner" android:textSize="14sp" android:textColor="#30292A" />
+            <RadioGroup android:id="@+id/settlement_direction" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp">
+                <RadioButton android:id="@+id/settlement_i_paid" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/settlement_i_paid" android:textSize="16sp" android:textColor="#30292A" />
+                <RadioButton android:id="@+id/settlement_they_paid" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/settlement_they_paid" android:textSize="16sp" android:textColor="#30292A" />
+            </RadioGroup>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/settlement_other_member" android:labelFor="@id/settlement_payee_spinner" android:textSize="14sp" android:textColor="#30292A" />
             <Spinner android:id="@+id/settlement_payee_spinner" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:layout_marginBottom="8dp" />
+            <TextView android:id="@+id/settlement_parties_locked" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/settlement_parties_locked" android:textSize="13sp" android:textColor="#605557" android:visibility="gone" android:layout_marginBottom="8dp" />
             <TextView android:id="@+id/settlement_limit" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="14sp" android:textColor="#655B5C" android:accessibilityLiveRegion="polite" android:layout_marginBottom="16dp" />
             <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="@string/settlement_amount" android:layout_marginBottom="14dp" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
                 <com.google.android.material.textfield.TextInputEditText android:id="@+id/settlement_amount" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" android:minHeight="56dp" android:imeOptions="actionNext" />

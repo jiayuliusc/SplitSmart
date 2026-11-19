@@ -36,6 +36,7 @@ public final class FirebaseSettlementRepository implements SettlementRepository 
     private Map<String, Object> draft(SettlementDraft value) {
         Map<String, Object> result = new HashMap<>(); result.put("payeeId", value.payeeId());
         result.put("amountCents", Long.toString(value.amountCents()));
+        if (value.payerId() != null) result.put("payerId", value.payerId());
         if (value.note() != null) result.put("note", value.note());
         return result;
     }

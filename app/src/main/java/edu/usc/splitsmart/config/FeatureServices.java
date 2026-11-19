@@ -2,7 +2,7 @@ package edu.usc.splitsmart.config;
 
 import edu.usc.splitsmart.service.*;
 
-/** Feature dependencies supplied by the composition root; settlement/history remain unavailable. */
+/** Feature dependencies supplied by the composition root */
 public interface FeatureServices extends IdentityGroupServices {
     ExpenseService expenses();
     BalanceService balances();

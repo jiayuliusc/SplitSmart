@@ -132,6 +132,87 @@ public final class FinancialDemoTest {
             byte[] bytes=new byte[256];while(copy.read(bytes)!=-1){ }
         }
     }
+    @Test public void expensePayerCheckboxFollowsSelectionAndLockedEdits() throws Exception {
+        String suffix=UUID.randomUUID().toString().replace("-","");
+        long base=Math.floorMod(UUID.randomUUID().getMostSignificantBits(),8_000_000_000L);
+        try {
+            ok(services.auth()::signOut);
+            for(String name:List.of("Alice","Bob")) {
+                String email=name.toLowerCase(Locale.ROOT)+suffix+"@usc.edu";emails.add(email);
+                String id=String.format(Locale.ROOT,"%010d",base+users.size());
+                users.add(this.<MutationResult<User>>ok(cb -> services.auth().register(email,"demo-password",new ProfileDraft(name,id),UUID.randomUUID().toString(),cb)).value());
+                ok(services.auth()::signOut);
+            }
+            this.<Session>ok(cb -> services.auth().signIn(emails.get(0),"demo-password",cb));
+            String group=group("Payer checkbox test",1).groupId();
+            instrumentation.startActivitySync(new Intent(instrumentation.getTargetContext(),CreateExpenseScreen.class)
+                .putExtra(NavigationContract.GROUP_ID,group).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            activity(CreateExpenseScreen.class);
+            await("participants",() -> ((Spinner)screen.findViewById(R.id.expense_payer_spinner)).getCount()==2);
+            instrumentation.runOnMainSync(() -> {
+                Spinner payer=screen.findViewById(R.id.expense_payer_spinner);
+                ViewGroup boxes=screen.findViewById(R.id.expense_participants_container);
+                int initial=payer.getSelectedItemPosition();
+                CheckBox current=(CheckBox)boxes.getChildAt(initial),next=(CheckBox)boxes.getChildAt(1-initial);
+                assertTrue(current.isChecked());assertFalse(current.isEnabled());
+                next.setChecked(false);assertFalse(next.isChecked());payer.setSelection(1-initial);
+            });
+            instrumentation.waitForIdleSync();
+            instrumentation.runOnMainSync(() -> {
+                Spinner payer=screen.findViewById(R.id.expense_payer_spinner);
+                ViewGroup boxes=screen.findViewById(R.id.expense_participants_container);
+                int selected=payer.getSelectedItemPosition();
+                CheckBox current=(CheckBox)boxes.getChildAt(selected),previous=(CheckBox)boxes.getChildAt(1-selected);
+                assertTrue(current.isChecked());assertFalse(current.isEnabled());assertTrue(previous.isEnabled());
+            });
+            ExpenseDraft malformed=new ExpenseDraft("Dinner",1000,users.get(0).uid(),List.of(users.get(1).uid()),
+                SplitMethod.EQUAL,Category.FOOD,null,List.of());
+            Result<MutationResult<Expense>> rejected=new Result<>();
+            long revision=ledger(group).revision();
+            instrumentation.runOnMainSync(() -> services.expenses().createExpense(group,revision,malformed,
+                LocalDate.now(),UUID.randomUUID().toString(),rejected));
+            assertTrue(rejected.done.await(30,TimeUnit.SECONDS));assertNull(rejected.value);
+            assertEquals(ErrorCode.VALIDATION,rejected.error.code());
+            instrumentation.runOnMainSync(screen::finish);
+
+            List<String> ids=new ArrayList<>(List.of(users.get(0).uid(),users.get(1).uid()));Collections.sort(ids);
+            for(SplitMethod method:List.of(SplitMethod.EXACT,SplitMethod.PERCENTAGE)) {
+                List<SplitInput> inputs=new ArrayList<>();
+                for(String uid:ids)inputs.add(method==SplitMethod.EXACT
+                    ? new SplitInput(uid,500L,null):new SplitInput(uid,null,5000));
+                ExpenseDraft draft=new ExpenseDraft("Locked split",1000,users.get(0).uid(),ids,method,Category.FOOD,null,inputs);
+                long currentRevision=ledger(group).revision();
+                Expense saved=this.<MutationResult<Expense>>ok(cb -> services.expenses().createExpense(group,currentRevision,draft,
+                    LocalDate.now(),UUID.randomUUID().toString(),cb)).value();
+                instrumentation.startActivitySync(new Intent(instrumentation.getTargetContext(),CreateExpenseScreen.class)
+                    .putExtra(NavigationContract.GROUP_ID,group).putExtra(NavigationContract.EXPENSE_ID,saved.expenseId())
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                activity(CreateExpenseScreen.class);
+                await("locked edit",() -> ((Spinner)screen.findViewById(R.id.expense_split_method_spinner)).getSelectedItemPosition()==method.ordinal()
+                    && ((Spinner)screen.findViewById(R.id.expense_payer_spinner)).getCount()==2);
+                instrumentation.runOnMainSync(() -> {
+                    ViewGroup boxes=screen.findViewById(R.id.expense_participants_container);
+                    for(int i=0;i<boxes.getChildCount();i++) {
+                        CheckBox box=(CheckBox)boxes.getChildAt(i);assertTrue(box.isChecked());assertFalse(box.isEnabled());
+                    }
+                    Spinner payer=screen.findViewById(R.id.expense_payer_spinner);payer.setSelection(1-payer.getSelectedItemPosition());
+                });
+                instrumentation.waitForIdleSync();
+                instrumentation.runOnMainSync(() -> {
+                    ViewGroup boxes=screen.findViewById(R.id.expense_participants_container);
+                    Spinner payer=screen.findViewById(R.id.expense_payer_spinner);
+                    assertTrue(((CheckBox)boxes.getChildAt(payer.getSelectedItemPosition())).isChecked());
+                    for(int i=0;i<boxes.getChildCount();i++)assertFalse(boxes.getChildAt(i).isEnabled());
+                    screen.finish();
+                });
+            }
+        } finally {
+            instrumentation.runOnMainSync(() -> {
+                ((SplitSmartApplication)instrumentation.getTargetContext().getApplicationContext()).getContainer().getFirebaseClients().getAuth().signOut();
+                for(Activity a:new ArrayList<>(ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)))a.finish();
+            });
+        }
+    }
     @Test public void completeBalanceDemoWithoutManualRefresh() throws Exception {
         String suffix=UUID.randomUUID().toString().replace("-","");
         long base=Math.floorMod(UUID.randomUUID().getMostSignificantBits(),8_000_000_000L);

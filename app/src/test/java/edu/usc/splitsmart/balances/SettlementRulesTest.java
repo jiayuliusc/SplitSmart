@@ -24,9 +24,9 @@ public class SettlementRulesTest {
         assertEquals(900, SettlementRules.remaining(ledger,"b","a","s"));
     }
     @Test public void invalidDraftHasFieldSpecificError() {
-        assertEquals("amountCents", SettlementRules.validate(new SettlementDraft("a",0,null)).field());
-        assertEquals("payeeId", SettlementRules.validate(new SettlementDraft("",1,null)).field());
-        assertNull(SettlementRules.validate(new SettlementDraft("a",100,null)));
+        assertEquals("amountCents", SettlementRules.validate(new SettlementDraft(null, "a",0,null)).field());
+        assertEquals("payeeId", SettlementRules.validate(new SettlementDraft(null, "",1,null)).field());
+        assertNull(SettlementRules.validate(new SettlementDraft(null, "a",100,null)));
     }
     @Test public void editPreviewAllowsTemporaryDebtAboveContractBound() {
         long max = edu.usc.splitsmart.domain.contract.ContractVersion.MAX_ABSOLUTE_CENTS;

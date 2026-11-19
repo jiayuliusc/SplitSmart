@@ -26,6 +26,10 @@ public final class SettlementViewModel extends FeatureViewModel {
         if (this.uid != null && !this.uid.equals(uid)) clearPrivate();
         super.bindUser(uid); this.uid = uid;
     }
+    /** The signed-in user, so the form can tell "I paid" from "they paid". */
+    public String viewer() { return uid; }
+    /** True when editing an existing settlement; payer and payee are then locked. */
+    public boolean editing() { return settlementId != null; }
     public void clearPrivate() {
         cancelOperations(); ledger.setValue(null); original.setValue(null); members.setValue(List.of()); completed.setValue(null);
     }
@@ -39,6 +43,7 @@ public final class SettlementViewModel extends FeatureViewModel {
                 if (settlementId != null && selected == null) { loadFailed(ErrorCode.NOT_FOUND); return; }
                 if (selected != null && !uid.equals(selected.creatorId())) { loadFailed(ErrorCode.PERMISSION_DENIED); return; }
                 if (selected != null && !saved.contains("draft:initialized")) {
+                    editDraft("payer", selected.payerId());
                     editDraft("payee", selected.payeeId()); editDraft("amount", dollars(selected.amountCents()));
                     editDraft("note", selected.note() == null ? "" : selected.note()); editDraft("initialized", "yes");
                 }
@@ -57,17 +62,26 @@ public final class SettlementViewModel extends FeatureViewModel {
         clearPrivate(); message.setValue(""); error.setValue(failure); busy.setValue(false);
     }
     public static String dollars(long cents) { return String.format(Locale.US, "%d.%02d", cents / 100, cents % 100); }
-    public long remaining(String payeeId) {
-        if (ledger.getValue() == null || uid == null || payeeId == null) return 0;
-        return SettlementRules.remaining(ledger.getValue(), uid, payeeId, settlementId);
+
+    /** Most the payer may record to the payee: current debt, plus this settlement's original amount when editing. */
+    public long remaining(String payerId, String payeeId) {
+        if (ledger.getValue() == null || payerId == null || payeeId == null || payerId.equals(payeeId)) return 0;
+        return SettlementRules.remaining(ledger.getValue(), payerId, payeeId, settlementId);
     }
-    public void save(String payee, String amount, String note) {
+
+    public void save(String payer, String payee, String amount, String note) {
         if (isBusy() || pending() || ledger.getValue() == null || uid == null) return;
         long cents;
         try { cents = SettlementRules.cents(amount); } catch (IllegalArgumentException invalid) { validation("amountCents"); return; }
-        if (payee == null || uid.equals(payee) || !ledger.getValue().memberIds().contains(payee)) { validation("payeeId"); return; }
-        if (cents > remaining(payee)) { validation("remaining"); return; }
-        SettlementDraft draft = new SettlementDraft(payee, cents, note == null || note.trim().isEmpty() ? null : note.trim());
+        List<String> members = ledger.getValue().memberIds();
+        // Both parties are group members, they differ, and the signed-in user is one of them.
+        if (payer == null || payee == null || payer.equals(payee) || !members.contains(payer) || !members.contains(payee)
+            || !(uid.equals(payer) || uid.equals(payee))) { validation("payeeId"); return; }
+        // Payer and recipient are fixed once a settlement exists.
+        Settlement existing = original.getValue();
+        if (existing != null && (!existing.payerId().equals(payer) || !existing.payeeId().equals(payee))) { validation("payeeId"); return; }
+        if (cents > remaining(payer, payee)) { validation("remaining"); return; }
+        SettlementDraft draft = new SettlementDraft(payer, payee, cents, note == null || note.trim().isEmpty() ? null : note.trim());
         if (SettlementRules.validate(draft) != null) { validation("note"); return; }
         persist(new SettlementIntent(settlementId == null ? "create" : "update", ledger.getValue().revision(), settlementId,
             settlementId == null ? LocalDate.now() : null, draft));

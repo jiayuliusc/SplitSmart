@@ -52,7 +52,7 @@ export function settlementRecord(settlementId: string, groupId: string, data: Fi
   return stored(() => {
     validate.object(data, [...common, "payeeId"], ["note"]);
     const meta = metadata(data); const payeeId = validate.id(data.payeeId);
-    requireThat(meta.creatorId === meta.payerId && meta.payerId !== payeeId, "INTERNAL", "Invalid stored settlement actor.");
+    requireThat((meta.creatorId === meta.payerId || meta.creatorId === payeeId) && meta.payerId !== payeeId, "INTERNAL", "Invalid stored settlement actor.");
     return {settlementId, groupId, ...meta, payeeId};
   });
 }

@@ -20,6 +20,7 @@ public final class SettlementRules {
     public static AppError validate(SettlementDraft draft) {
         if (draft == null) return invalid("draft");
         if (draft.payeeId().trim().isEmpty()) return invalid("payeeId");
+        if (draft.payerId() != null && draft.payerId().trim().isEmpty()) return invalid("payerId");
         if (draft.amountCents() <= 0 || draft.amountCents() > ContractVersion.MAX_ABSOLUTE_CENTS) return invalid("amountCents");
         if (draft.note() != null && draft.note().length() > 1000) return invalid("note");
         return null;

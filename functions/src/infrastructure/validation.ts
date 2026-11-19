@@ -75,9 +75,10 @@ export function localDate(value: unknown): string {
   return value;
 }
 
-export function settlementDraft(value: unknown): {payeeId: string; amountCents: string; note?: string} {
-  const data = object(value, ["payeeId", "amountCents"], ["note"]);
+export function settlementDraft(value: unknown): {payerId?: string; payeeId: string; amountCents: string; note?: string} {
+  const data = object(value, ["payeeId", "amountCents"], ["payerId", "note"]);
   return {payeeId: id(data.payeeId, "payeeId"), amountCents: cents(data.amountCents),
+    ...(data.payerId === undefined ? {} : {payerId: id(data.payerId, "payerId")}),
     ...(data.note === undefined ? {} : {note: string(data.note, "note", 1000, true)})};
 }
 

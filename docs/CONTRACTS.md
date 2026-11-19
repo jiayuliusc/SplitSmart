@@ -2,9 +2,8 @@
 
 This document and [SCHEMA.md](SCHEMA.md) define contract baseline v1. Identity/group
 management and X01 now implement their listed services, repositories, codecs and
-seven callables. Expense, balance and settlement services implement their v1 interfaces; history
-and monthly summary remain definitions only. The additive
-X01 auth method and composition subset below do not change stored or wire schemas.
+seven callables. Expense, balance, settlement and history services implement their v1 interfaces.
+The additive X01 auth method and composition subset below do not change stored or wire schemas.
 See [implementation map](USER_GROUP_IMPLEMENTATION.md) for scope and verification.
 
 ## Source of truth
@@ -84,7 +83,8 @@ expected revision and explicit refresh, not by pretending a snapshot is live.
 The declarations below mirror the compiling sources. `Callback`, `AsyncOperation`,
 `ReadPolicy`, `ReadResult` and `MutationResult` come from `domain.contract`; other
 value types come from `domain.model`. Source files remain authoritative for Java
-syntax. Identity/group methods now have real implementations; expense and balance methods also have implementations, while history/summary remain interfaces.
+syntax. Identity/group methods now have real implementations; expense, balance, settlement and
+history/summary methods also have implementations.
 
 ```java
 interface AuthRepository {
@@ -240,8 +240,9 @@ shares, stored timestamps or currency. A groupId scopes an operation, not author
 email. `updateProfileName` takes name. Group create/update take a full GroupDraft.
 `addGroupMember.email` is trimmed, lowercase and an exact `usc.edu` domain.
 Member responses contain authorized group members only, never a user directory.
-The backend derives new group owner, expense creator and settlement creator/payer
-from verified authentication. It must independently enforce membership, ownership,
+The backend derives new group owner, expense creator and settlement creator
+from verified authentication; a settlement payer is the optional `payerId` or the actor,
+and the actor must be the payer or payee. It must independently enforce membership, ownership,
 creator rights, profile readiness and every authoritative validation rule.
 
 All existing-group mutations require `groupId`, `expectedRevision`, and a requestId.
@@ -331,8 +332,8 @@ prove a financial handler; those implementations need contention and retry tests
    and the corresponding settlements query. No limit(500), pagination outside the
    transaction, independent repository reads, cached data, or editable aggregate
    counters. These snapshots plus group membership/status/revision and the actor's
-   profile are authoritative. Select the existing record from these snapshots for
-   edit/delete and validate its immutable creator/payer/date metadata.
+   profile are authoritative. Select the existing record from these snapshots for edit/
+   delete and edit/delete and validate its immutable creator/payer/payee/date metadata.
 5. Compute/validate the proposed resulting ledger with exact arithmetic. Backend
    recalculates expense shares, validates all references, and enforces positive
    settlement amount <= authoritative pairwise debt. For a settlement edit, remove
@@ -471,10 +472,11 @@ local route.
 [`IdentityGroupServices`](../app/src/main/java/edu/usc/splitsmart/config/IdentityGroupServices.java)
 provides auth()/groups() and is implemented by AppContainer with real dependencies.
 FeatureServices extends this subset and retains the other four feature accessors;
-AppContainer wires real expense/balance services; settlements are also wired; the unfinished history getter currently returns null. FeatureFactory supplies
-SavedStateHandle and constructor-injected services to ViewModels. Screens never
-fetch Firebase clients. Pending mutation IDs and exact payloads survive configuration
-changes/process recreation through SavedStateHandle. Password fields are not saved.
+AppContainer wires real expense/balance services; settlements are also wired;
+history is wired to DefaultHistoryService, which projects the coherent ledger in Java.
+FeatureFactory supplies SavedStateHandle and constructor-injected services to ViewModels.
+Screens never fetch Firebase clients. Pending mutation IDs and exact payloads survive
+configuration changes/process recreation through SavedStateHandle. Password fields are not saved.
 
 After an acknowledged mutation, a child sets RESULT_OK with the immutable requestId,
 groupId and new groupRevision and finishes. Parent ViewModels verify the current
@@ -482,8 +484,10 @@ session/scope, then request FRESH through their service. On reopen/resume or man
 refresh they also request FRESH, covering changes from other clients. Cancellation
 or unknown outcome sends no successful result; retry the same request first.
 The result is an invalidation hint, not authoritative balance data. Group deletion
-acceptance returns to the group list and refreshes it. Identity/group Activities implement these routes. Group creation/deletion return
-results; detail changes remain visible in place and set the same result metadata. The parent reloads on resume/results. Back navigation waits for pending mutations to resolve.
+acceptance returns to the group list and refreshes it. Identity/group Activities
+implement these routes. Group creation/deletion return results; detail changes remain
+visible in place and set the same result metadata. The parent reloads on resume/results.
+Back navigation waits for pending mutations to resolve.
 
 
 ## Implemented financial updates - November 4, 2026

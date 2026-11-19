@@ -1,6 +1,8 @@
 <resources>
     <string name="expenses_edit_title">Edit expense</string>
     <string name="expenses_save">Save changes</string>
+    <!--
     <string name="expenses_exact_preserved">Edit the description, payer, category or note. The original exact amounts and participants are preserved.</string>
     <string name="expenses_percentage_preserved">Edit this expense. The original percentages and participants are preserved when the total changes.</string>
+    -->
 </resources>
