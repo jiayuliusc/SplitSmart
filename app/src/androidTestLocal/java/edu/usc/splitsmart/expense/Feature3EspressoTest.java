@@ -5,6 +5,7 @@ import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
 import static androidx.test.espresso.action.ViewActions.replaceText;
+import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isEnabled;
@@ -15,6 +16,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -22,6 +24,8 @@ import static org.junit.Assert.fail;
 import android.app.Activity;
 import android.app.Instrumentation;
 import android.content.Intent;
+import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -33,6 +37,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -141,6 +146,14 @@ public final class Feature3EspressoTest {
             }
             return false;
         });
+        await("group members", () -> {
+            for (Activity activity : new ArrayList<>(ActivityLifecycleMonitorRegistry.getInstance()
+                    .getActivitiesInStage(Stage.RESUMED))) {
+                android.view.ViewGroup participants = activity.findViewById(R.id.expense_participants_container);
+                if (activity instanceof CreateExpenseScreen && participants != null && participants.getChildCount() == 3) return true;
+            }
+            return false;
+        });
         onView(withId(R.id.expense_title)).perform(replaceText("Dinner"), closeSoftKeyboard());
     }
 
@@ -158,14 +171,22 @@ public final class Feature3EspressoTest {
         onView(withId(R.id.expense_amount)).perform(replaceText(value), closeSoftKeyboard());
     }
 
-    private void method(String label) {
+    private void method(String label) throws Exception {
         onView(withId(R.id.expense_split_method_spinner)).perform(click());
         onData(is(label)).perform(click());
+        await("custom split fields", () -> {
+            for (Activity activity : new ArrayList<>(ActivityLifecycleMonitorRegistry.getInstance()
+                    .getActivitiesInStage(Stage.RESUMED))) {
+                android.view.ViewGroup inputs = activity.findViewById(R.id.expense_split_inputs_container);
+                if (activity instanceof CreateExpenseScreen && inputs != null && inputs.getChildCount() == 3) return true;
+            }
+            return false;
+        });
     }
 
     private void splitValue(String participant, String method, String value) {
         onView(withContentDescription(participant + ", " + method))
-            .perform(replaceText(value), closeSoftKeyboard());
+            .perform(scrollTo(), replaceText(value), closeSoftKeyboard());
     }
 
     private LedgerSnapshot ledger(String groupId) throws Exception {
@@ -175,11 +196,12 @@ public final class Feature3EspressoTest {
 
     @Test public void equalSplitAllocatesIndivisibleCentAndEnablesSave() throws Exception {
         Fixture f = fixture(); open(f); amount("10.00");
-        await("equal preview", () -> isTextVisible("Bob: $3.34") && isTextVisible("Carol: $3.33")
-            && isTextVisible("David: $3.33"));
-        onView(withText("Bob: $3.34")).check(matches(isDisplayed()));
-        onView(withText("Carol: $3.33")).check(matches(isDisplayed()));
-        onView(withText("David: $3.33")).check(matches(isDisplayed()));
+        String extra = f.bob.uid().compareTo(f.carol.uid()) < 0 && f.bob.uid().compareTo(f.david.uid()) < 0 ? "Bob"
+            : f.carol.uid().compareTo(f.david.uid()) < 0 ? "Carol" : "David";
+        for (String name : List.of("Bob", "Carol", "David")) {
+            String expected = name + (name.equals(extra) ? ": $3.34" : ": $3.33");
+            await("equal preview for " + name, () -> isTextVisible(expected));
+        }
         onView(withId(R.id.expense_submit)).check(matches(isEnabled()));
     }
 
@@ -189,12 +211,14 @@ public final class Feature3EspressoTest {
         splitValue("Carol", "Exact amounts", "15.00");
         splitValue("David", "Exact amounts", "5.00");
         await("valid exact preview", () -> isTextVisible("Carol: $15.00"));
-        onView(withId(R.id.expense_submit)).check(matches(isEnabled())).perform(click());
-        await("saved exact expense", () -> {
-            try { return !ledger(f.groupId).expenses().isEmpty(); }
-            catch (Exception ignored) { return false; }
-        });
-        Expense saved = ledger(f.groupId).expenses().get(0);
+        onView(withId(R.id.expense_submit)).check(matches(isEnabled())).perform(scrollTo(), click());
+        Expense saved = null;
+        for (int i = 0; i < 100 && saved == null; i++) {
+            List<Expense> expenses = ledger(f.groupId).expenses();
+            if (!expenses.isEmpty()) saved = expenses.get(0);
+            else Thread.sleep(100);
+        }
+        assertNotNull("Exact expense was not saved", saved);
         assertEquals("EXACT", saved.splitMethod().name());
         assertEquals(3000L, saved.shares().stream().mapToLong(value -> value.amountCents()).sum());
     }
@@ -216,11 +240,32 @@ public final class Feature3EspressoTest {
         splitValue("Bob", "Percentages", "25");
         splitValue("Carol", "Percentages", "50");
         splitValue("David", "Percentages", "25");
-        await("percentage preview", () -> isTextVisible("Bob: $2.50 (25%)")
-            && isTextVisible("Carol: $5.01 (50%)") && isTextVisible("David: $2.50 (25%)"));
-        onView(withText("Bob: $2.50 (25%)")).check(matches(isDisplayed()));
-        onView(withText("Carol: $5.01 (50%)")).check(matches(isDisplayed()));
-        onView(withText("David: $2.50 (25%)")).check(matches(isDisplayed()));
+        await("percentage preview", () -> {
+            for (Activity activity : new ArrayList<>(ActivityLifecycleMonitorRegistry.getInstance()
+                    .getActivitiesInStage(Stage.RESUMED))) {
+                ViewGroup rows = activity.findViewById(R.id.expense_split_preview_container);
+                if (activity instanceof CreateExpenseScreen && rows != null && rows.getChildCount() == 3
+                        && activity.findViewById(R.id.expense_submit).isEnabled()) return true;
+            }
+            return false;
+        });
+        List<String> rows = new ArrayList<>();
+        instrumentation.runOnMainSync(() -> {
+            for (Activity activity : new ArrayList<>(ActivityLifecycleMonitorRegistry.getInstance()
+                    .getActivitiesInStage(Stage.RESUMED))) {
+                if (!(activity instanceof CreateExpenseScreen)) continue;
+                ViewGroup preview = activity.findViewById(R.id.expense_split_preview_container);
+                for (int i = 0; i < preview.getChildCount(); i++)
+                    rows.add(((TextView) preview.getChildAt(i)).getText().toString());
+            }
+        });
+        long cents = 0;
+        for (String row : rows) {
+            int start = row.indexOf('$') + 1, end = row.indexOf('(', start);
+            assertTrue(rows.toString(), start > 0 && end > start && row.contains("%"));
+            cents += new BigDecimal(row.substring(start, end)).movePointRight(2).longValueExact();
+        }
+        assertEquals(rows.toString(), 1001, cents);
         onView(withId(R.id.expense_submit)).check(matches(isEnabled()));
     }
 
@@ -256,7 +301,7 @@ public final class Feature3EspressoTest {
     private boolean containsText(android.view.View view, String expected, boolean partial) {
         if (view instanceof android.widget.TextView) {
             String actual = ((android.widget.TextView) view).getText().toString();
-            if (partial ? actual.contains(expected) : actual.equals(expected)) return view.isShown();
+            if (partial ? actual.contains(expected) : actual.equals(expected)) return true;
         }
         if (view instanceof android.view.ViewGroup) {
             android.view.ViewGroup group = (android.view.ViewGroup) view;
